@@ -19,7 +19,10 @@ import {
   addMessage,
   getRecentMessages,
   setPingInterval,
+  setTagRadius,
+  randomizeTeams,
 } from './rooms.js';
+import { haversineDistanceMeters } from './geo.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -59,11 +62,40 @@ function broadcastRoom(code) {
   io.to(code).emit('room-state', roomSnapshot(code));
 }
 
+function checkProximityTags(roomCode, movedPlayerId) {
+  const room = getRoom(roomCode);
+  if (!room) return;
+  const mover = getPlayer(movedPlayerId);
+  if (!mover || mover.caught || mover.lat == null || mover.lng == null) return;
+  if (mover.role !== 'hunter' && mover.role !== 'runner') return;
+
+  const oppositeRole = mover.role === 'hunter' ? 'runner' : 'hunter';
+  const targets = getPlayers(roomCode).filter(
+    (p) => p.role === oppositeRole && !p.caught && p.connected && p.lat != null && p.lng != null
+  );
+
+  for (const target of targets) {
+    const dist = haversineDistanceMeters(mover.lat, mover.lng, target.lat, target.lng);
+    if (dist <= room.tag_radius_meters) {
+      const runner = mover.role === 'runner' ? mover : target;
+      const hunter = mover.role === 'hunter' ? mover : target;
+      setPlayerCaught(runner.id, true);
+      const sysMsg = addMessage({
+        roomCode,
+        playerName: 'System',
+        text: `${runner.name} was tagged by ${hunter.name}! (${Math.round(dist)}m)`,
+        system: true,
+      });
+      io.to(roomCode).emit('chat-message', sysMsg);
+    }
+  }
+}
+
 io.on('connection', (socket) => {
-  socket.on('create-room', ({ roomName, pingIntervalSeconds, playerName, role }, cb) => {
+  socket.on('create-room', ({ roomName, pingIntervalSeconds, tagRadiusMeters, playerName, role }, cb) => {
     try {
       if (!playerName || !playerName.trim()) throw new Error('Name is required');
-      const room = createRoom(roomName, Number(pingIntervalSeconds) || 30);
+      const room = createRoom(roomName, Number(pingIntervalSeconds) || 30, Number(tagRadiusMeters) || 15);
       const player = addPlayer({ roomCode: room.code, name: playerName.trim(), role: role || 'runner' });
 
       socket.data.playerId = player.id;
@@ -125,6 +157,7 @@ io.on('connection', (socket) => {
     if (!playerId || !roomCode) return;
     if (typeof lat !== 'number' || typeof lng !== 'number') return;
     updatePlayerLocation(playerId, { lat, lng, accuracy });
+    checkProximityTags(roomCode, playerId);
     broadcastRoom(roomCode);
   });
 
@@ -143,6 +176,34 @@ io.on('connection', (socket) => {
     if (!s || s < 5) return;
     setPingInterval(roomCode, s);
     broadcastRoom(roomCode);
+  });
+
+  socket.on('set-tag-radius', ({ meters }) => {
+    const { roomCode } = socket.data;
+    if (!roomCode) return;
+    const m = Number(meters);
+    if (!m || m < 1) return;
+    setTagRadius(roomCode, m);
+    broadcastRoom(roomCode);
+  });
+
+  socket.on('randomize-teams', ({ hunterCount }, cb) => {
+    const { roomCode } = socket.data;
+    if (!roomCode) { cb?.({ ok: false, error: 'Not in a room' }); return; }
+    try {
+      const result = randomizeTeams(roomCode, Number(hunterCount) || 1);
+      const sysMsg = addMessage({
+        roomCode,
+        playerName: 'System',
+        text: `Teams randomized: ${result.hunters} hunter(s), ${result.runners} runner(s).`,
+        system: true,
+      });
+      io.to(roomCode).emit('chat-message', sysMsg);
+      broadcastRoom(roomCode);
+      cb?.({ ok: true, ...result });
+    } catch (err) {
+      cb?.({ ok: false, error: err.message });
+    }
   });
 
   socket.on('toggle-caught', ({ targetPlayerId, caught }) => {

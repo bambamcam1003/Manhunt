@@ -13,6 +13,7 @@ db.exec(`
     code TEXT PRIMARY KEY,
     name TEXT NOT NULL,
     ping_interval_seconds INTEGER NOT NULL DEFAULT 30,
+    tag_radius_meters INTEGER NOT NULL DEFAULT 15,
     created_at INTEGER NOT NULL
   );
 
@@ -41,5 +42,10 @@ db.exec(`
     FOREIGN KEY (room_code) REFERENCES rooms(code)
   );
 `);
+
+const roomColumns = db.prepare('PRAGMA table_info(rooms)').all().map((c) => c.name);
+if (!roomColumns.includes('tag_radius_meters')) {
+  db.exec('ALTER TABLE rooms ADD COLUMN tag_radius_meters INTEGER NOT NULL DEFAULT 15');
+}
 
 export default db;

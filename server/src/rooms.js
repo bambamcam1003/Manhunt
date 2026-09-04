@@ -9,15 +9,15 @@ const PLAYER_COLORS = [
   '#e6beff', '#9a6324', '#800000', '#808000', '#000075',
 ];
 
-export function createRoom(name, pingIntervalSeconds) {
+export function createRoom(name, pingIntervalSeconds, tagRadiusMeters) {
   let code;
   do {
     code = roomCode();
   } while (db.prepare('SELECT 1 FROM rooms WHERE code = ?').get(code));
 
   db.prepare(
-    'INSERT INTO rooms (code, name, ping_interval_seconds, created_at) VALUES (?, ?, ?, ?)'
-  ).run(code, name || 'Manhunt', pingIntervalSeconds || 30, Date.now());
+    'INSERT INTO rooms (code, name, ping_interval_seconds, tag_radius_meters, created_at) VALUES (?, ?, ?, ?, ?)'
+  ).run(code, name || 'Manhunt', pingIntervalSeconds || 30, tagRadiusMeters || 15, Date.now());
 
   return getRoom(code);
 }
@@ -29,6 +29,10 @@ export function getRoom(code) {
 
 export function setPingInterval(code, seconds) {
   db.prepare('UPDATE rooms SET ping_interval_seconds = ? WHERE code = ?').run(seconds, code);
+}
+
+export function setTagRadius(code, meters) {
+  db.prepare('UPDATE rooms SET tag_radius_meters = ? WHERE code = ?').run(meters, code);
 }
 
 export function getPlayers(code) {
@@ -64,6 +68,33 @@ export function setPlayerRole(id, role) {
 
 export function setPlayerCaught(id, caught) {
   db.prepare('UPDATE players SET caught = ? WHERE id = ?').run(caught ? 1 : 0, id);
+}
+
+const assignRoles = db.transaction((assignments) => {
+  const stmt = db.prepare('UPDATE players SET role = ?, caught = 0 WHERE id = ?');
+  for (const { id, role } of assignments) stmt.run(role, id);
+});
+
+export function randomizeTeams(roomCode, hunterCount) {
+  const candidates = getPlayers(roomCode).filter((p) => p.role !== 'spectator');
+  if (candidates.length < 2) {
+    throw new Error('Need at least 2 hunters/runners to randomize teams');
+  }
+
+  const shuffled = [...candidates];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+
+  const clampedHunterCount = Math.min(Math.max(1, hunterCount), shuffled.length - 1);
+  const assignments = shuffled.map((p, idx) => ({
+    id: p.id,
+    role: idx < clampedHunterCount ? 'hunter' : 'runner',
+  }));
+  assignRoles(assignments);
+
+  return { hunters: clampedHunterCount, runners: shuffled.length - clampedHunterCount };
 }
 
 export function updatePlayerLocation(id, { lat, lng, accuracy }) {

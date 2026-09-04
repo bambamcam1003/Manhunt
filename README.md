@@ -5,15 +5,22 @@ at a chosen interval, positions show up live on a shared map, and there's a grou
 
 ## How it works
 
-- **Create a game** — pick a game name, a GPS ping interval (5s to 10min), your name, and
-  your role (Hunter / Runner / Spectator). You get a 5-letter room code.
+- **Create a game** — pick a game name, a GPS ping interval (5s to 10min), a tag radius
+  (5m to 100m), your name, and your role (Hunter / Runner / Spectator). You get a 5-letter
+  room code.
 - **Share the code** with friends — they open the app, tap "Join Game", enter the code and
   their name.
 - Everyone's browser pings its GPS on the chosen interval and the server broadcasts every
   player's latest position to the room, shown on a live map.
-- Hunters can mark a runner as "Caught" from the Players tab.
-- The ping interval can be changed by anyone mid-game (e.g. slow it down to save battery,
-  speed it up for the final chase).
+- **Auto-tag by proximity** — whenever a hunter's and a runner's GPS positions come within
+  the room's tag radius of each other, the runner is automatically marked "caught" (no
+  button press needed) and it's announced in chat. Hunters can also manually toggle
+  "Caught" from the Players tab, for overrides or when GPS is unreliable.
+- **Randomize teams** — from the Players tab, pick how many hunters you want and hit
+  "Randomize Teams" to shuffle everyone (except spectators) into hunters/runners and reset
+  catch status for a new round.
+- The ping interval and tag radius can both be changed by anyone mid-game (e.g. slow the
+  ping down to save battery, widen the tag radius if GPS is noisy).
 - There's a group chat tab for coordinating/trash talk.
 - The app is installable to your phone's home screen (PWA) for a more native feel.
 

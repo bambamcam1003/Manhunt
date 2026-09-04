@@ -5,6 +5,7 @@ import PlayerList from './PlayerList.jsx';
 import Chat from './Chat.jsx';
 
 const INTERVAL_OPTIONS = [5, 10, 30, 60, 120, 300, 600];
+const TAG_RADIUS_OPTIONS = [5, 10, 15, 20, 30, 50, 100];
 
 function formatInterval(seconds) {
   if (seconds < 60) return `${seconds}s`;
@@ -62,6 +63,10 @@ export default function Game({ room, player, players, messages, onLeave }) {
     socket.emit('set-ping-interval', { seconds: Number(seconds) });
   }
 
+  function changeTagRadius(meters) {
+    socket.emit('set-tag-radius', { meters: Number(meters) });
+  }
+
   function copyCode() {
     navigator.clipboard?.writeText(room.code).catch(() => {});
   }
@@ -102,6 +107,21 @@ export default function Game({ room, player, players, messages, onLeave }) {
         <span className="last-sent">
           {lastSent ? `Last sent ${new Date(lastSent).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}` : 'Waiting for GPS...'}
         </span>
+      </div>
+
+      <div className="ping-bar">
+        <span>
+          Auto-tag within
+          <select
+            value={room.tag_radius_meters ?? 15}
+            onChange={(e) => changeTagRadius(e.target.value)}
+          >
+            {TAG_RADIUS_OPTIONS.map((m) => (
+              <option key={m} value={m}>{m}m</option>
+            ))}
+          </select>
+        </span>
+        <span className="last-sent">Hunters auto-catch runners within this range</span>
       </div>
 
       <main className="game-body">

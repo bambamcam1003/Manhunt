@@ -10,6 +10,16 @@ const INTERVAL_OPTIONS = [
   { label: '10 minutes', value: 600 },
 ];
 
+const TAG_RADIUS_OPTIONS = [
+  { label: '5 meters', value: 5 },
+  { label: '10 meters', value: 10 },
+  { label: '15 meters (default)', value: 15 },
+  { label: '20 meters', value: 20 },
+  { label: '30 meters', value: 30 },
+  { label: '50 meters', value: 50 },
+  { label: '100 meters', value: 100 },
+];
+
 export default function Home({ onCreate, onJoin, connected, connecting, error }) {
   const [mode, setMode] = useState('join');
   const [playerName, setPlayerName] = useState('');
@@ -17,6 +27,7 @@ export default function Home({ onCreate, onJoin, connected, connecting, error })
 
   const [roomName, setRoomName] = useState('My Manhunt Game');
   const [pingIntervalSeconds, setPingIntervalSeconds] = useState(30);
+  const [tagRadiusMeters, setTagRadiusMeters] = useState(15);
 
   const [joinCode, setJoinCode] = useState('');
 
@@ -24,7 +35,7 @@ export default function Home({ onCreate, onJoin, connected, connecting, error })
     e.preventDefault();
     if (!playerName.trim()) return;
     if (mode === 'create') {
-      onCreate({ roomName, pingIntervalSeconds, playerName, role });
+      onCreate({ roomName, pingIntervalSeconds, tagRadiusMeters, playerName, role });
     } else {
       onJoin({ code: joinCode.trim().toUpperCase(), playerName, role });
     }
@@ -108,6 +119,20 @@ export default function Home({ onCreate, onJoin, connected, connecting, error })
                 onChange={(e) => setPingIntervalSeconds(Number(e.target.value))}
               >
                 {INTERVAL_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
+                ))}
+              </select>
+            </label>
+          )}
+
+          {mode === 'create' && (
+            <label>
+              Tag radius (auto-catch distance)
+              <select
+                value={tagRadiusMeters}
+                onChange={(e) => setTagRadiusMeters(Number(e.target.value))}
+              >
+                {TAG_RADIUS_OPTIONS.map((o) => (
                   <option key={o.value} value={o.value}>{o.label}</option>
                 ))}
               </select>
