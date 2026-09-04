@@ -50,6 +50,23 @@ function iconFor(player, isLive) {
   });
 }
 
+// Leaflet only measures its container once, when the map is created. If the
+// surrounding layout shifts afterward (a banner appears/disappears, the
+// ping-bar rows wrap, the tab becomes visible again) the map keeps using its
+// stale size and renders tiles for the wrong bounds until something forces a
+// redraw — which is why zooming "fixes" it. Watch the container and redraw
+// automatically instead of relying on the user to zoom.
+function InvalidateSizeOnResize() {
+  const map = useMap();
+  useEffect(() => {
+    const container = map.getContainer();
+    const observer = new ResizeObserver(() => map.invalidateSize());
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, [map]);
+  return null;
+}
+
 function FitToPlayers({ players }) {
   const map = useMap();
   const located = players.filter((p) => p.lat != null && p.lng != null);
@@ -83,6 +100,7 @@ export default function GameMap({ players, freshThresholdMs = 60000, viewerRole 
       <MapContainer center={center} zoom={16} maxZoom={19} zoomControl={false} className="map">
         <TileLayer key={layerKey} attribution={layer.attribution} url={layer.url} maxZoom={layer.maxZoom} />
         <ZoomControl position="bottomright" />
+        <InvalidateSizeOnResize />
         <FitToPlayers players={players} />
         {located.map((p) => {
           const isLive = !!p.connected && !!p.last_update && Date.now() - p.last_update < freshThresholdMs;
