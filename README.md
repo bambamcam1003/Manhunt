@@ -16,6 +16,12 @@ at a chosen interval, positions show up live on a shared map, and there's a grou
   be given different ping rates (e.g. hunters ping every 5s for a tighter chase while
   runners ping every minute to save battery) — each player's game screen shows a live
   "next ping in Xs" countdown for their own device.
+- **Team-only map** — the map only shows your own team's live positions: hunters see
+  hunters, runners see runners, and neither sees the other (this is enforced by the server,
+  not just hidden in the UI — the other team's coordinates are never sent to your device in
+  the first place). Spectators see everyone. Recently-pinging teammates get a pulsing "live"
+  marker; anyone who hasn't pinged in a while shows dimmed with a "last known" timestamp
+  instead, so you can tell a fresh position from a stale one.
 - **Auto-tag by proximity** — whenever a hunter's and a runner's GPS positions come within
   the room's tag radius of each other, the runner is automatically marked "caught" (no
   button press needed) and it's announced in chat. The runner's own screen flashes red with
@@ -36,6 +42,8 @@ at a chosen interval, positions show up live on a shared map, and there's a grou
   No photo needed — you get a colored initial avatar instead.
 - **Map**: live OpenStreetMap view with a satellite toggle (Esri World Imagery) and zoom up
   to street level.
+- A red dot appears on the Chat tab whenever a new message (including system announcements
+  like tags and round starts) arrives while you're looking at a different tab.
 - The ping intervals, tag radius, and start delay can all be changed by anyone mid-game
   (e.g. slow the ping down to save battery, widen the tag radius if GPS is noisy).
 - There's a group chat tab for coordinating/trash talk.

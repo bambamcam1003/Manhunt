@@ -34,6 +34,7 @@ export default function Game({ room, player, players, messages, onLeave }) {
   const myIntervalSeconds = isHunter
     ? (room.hunter_ping_interval_seconds ?? 30)
     : room.ping_interval_seconds;
+  const freshThresholdMs = Math.max(15, myIntervalSeconds * 2.5) * 1000;
 
   const sendLocation = useCallback(() => {
     if (!navigator.geolocation) {
@@ -120,6 +121,20 @@ export default function Game({ room, player, players, messages, onLeave }) {
     const t = setTimeout(() => setCatching(null), 700);
     return () => clearTimeout(t);
   }, [catching]);
+
+  // Red dot on the Chat tab whenever a new message arrives while we're not
+  // looking at it.
+  const [hasUnreadChat, setHasUnreadChat] = useState(false);
+  const seenMessageCountRef = useRef(messages.length);
+  useEffect(() => {
+    if (messages.length > seenMessageCountRef.current && tab !== 'chat') {
+      setHasUnreadChat(true);
+    }
+    seenMessageCountRef.current = messages.length;
+  }, [messages.length, tab]);
+  useEffect(() => {
+    if (tab === 'chat') setHasUnreadChat(false);
+  }, [tab]);
 
   function changeRole(newRole) {
     socket.emit('set-role', { role: newRole });
@@ -287,7 +302,7 @@ export default function Game({ room, player, players, messages, onLeave }) {
       </div>
 
       <main className="game-body">
-        {tab === 'map' && <GameMap players={players} />}
+        {tab === 'map' && <GameMap players={players} freshThresholdMs={freshThresholdMs} viewerRole={me.role} />}
         {tab === 'players' && <PlayerList players={players} me={me} gameLive={gameLive} />}
         {tab === 'chat' && <Chat messages={messages} me={me} />}
       </main>
@@ -297,7 +312,10 @@ export default function Game({ room, player, players, messages, onLeave }) {
         <button className={tab === 'players' ? 'active' : ''} onClick={() => setTab('players')}>
           👥 Players ({players.length})
         </button>
-        <button className={tab === 'chat' ? 'active' : ''} onClick={() => setTab('chat')}>💬 Chat</button>
+        <button className={tab === 'chat' ? 'active' : ''} onClick={() => setTab('chat')}>
+          💬 Chat
+          {hasUnreadChat && <span className="unread-dot" />}
+        </button>
       </nav>
     </div>
   );

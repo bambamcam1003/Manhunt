@@ -69,14 +69,24 @@ app.get('/api/rooms/:code', (req, res) => {
   res.json({ ok: true, room });
 });
 
-function roomSnapshot(code) {
-  const room = getRoom(code);
-  const players = getPlayers(code);
-  return { room, players };
+// Hunters only see hunters' live positions, runners only see runners' —
+// same team as the viewer, or the viewer themself. Spectators see everyone.
+// Cross-team players still appear (name/role/caught/etc.) with their
+// location stripped, so the roster and manual-tag controls keep working.
+function playersVisibleTo(viewer, allPlayers) {
+  if (viewer.role === 'spectator') return allPlayers;
+  return allPlayers.map((p) => {
+    if (p.id === viewer.id || p.role === viewer.role) return p;
+    return { ...p, lat: null, lng: null, accuracy: null };
+  });
 }
 
 function broadcastRoom(code) {
-  io.to(code).emit('room-state', roomSnapshot(code));
+  const room = getRoom(code);
+  const players = getPlayers(code);
+  for (const viewer of players) {
+    io.to(viewer.id).emit('room-state', { room, players: playersVisibleTo(viewer, players) });
+  }
 }
 
 function checkProximityTags(roomCode, movedPlayerId) {
