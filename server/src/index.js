@@ -1,5 +1,7 @@
 import express from 'express';
 import http from 'node:http';
+import https from 'node:https';
+import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import cors from 'cors';
@@ -20,13 +22,20 @@ import {
 } from './rooms.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const PORT = process.env.PORT || 3001;
+
+const certPath = process.env.SSL_CERT_PATH || path.join(__dirname, '..', 'certs', 'cert.pem');
+const keyPath = process.env.SSL_KEY_PATH || path.join(__dirname, '..', 'certs', 'key.pem');
+const useHttps = fs.existsSync(certPath) && fs.existsSync(keyPath);
+
+const PORT = process.env.PORT || (useHttps ? 443 : 3001);
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-const server = http.createServer(app);
+const server = useHttps
+  ? https.createServer({ cert: fs.readFileSync(certPath), key: fs.readFileSync(keyPath) }, app)
+  : http.createServer(app);
 const io = new Server(server, { cors: { origin: '*' } });
 
 const clientDist = path.join(__dirname, '..', '..', 'client', 'dist');
@@ -175,5 +184,5 @@ app.get('*', (req, res) => {
 });
 
 server.listen(PORT, () => {
-  console.log(`Manhunt server listening on port ${PORT}`);
+  console.log(`Manhunt server listening on port ${PORT} (${useHttps ? 'https' : 'http'})`);
 });

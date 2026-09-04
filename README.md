@@ -60,6 +60,56 @@ Then open `http://localhost:5173`.
    below) or use a tunnel like `ngrok http 3001` / `cloudflared tunnel --url http://localhost:3001`
    to get a temporary HTTPS URL.
 
+## Hosting on your own Windows PC, exposed publicly (port forwarding)
+
+For a one-off game night where you just want to forward a port on your router and play,
+without a third-party tunnel service.
+
+**Important:** phone browsers block GPS access on plain `http://` (only `https://` or
+`localhost` are allowed to use the Geolocation API). So this app needs to be served over
+HTTPS even for a quick local game — a self-signed certificate is enough, friends will just
+see a one-time "connection not private" warning they click through.
+
+1. **Install Node.js** (LTS) from nodejs.org if you don't have it.
+2. **Get the code** onto the Windows PC (e.g. `git clone` the repo, or download it as a zip
+   and extract it), then open PowerShell in that folder.
+3. **Install and build:**
+   ```powershell
+   npm run install:all
+   npm run build
+   ```
+4. **Find your public IP** (PowerShell):
+   ```powershell
+   curl.exe ifconfig.me
+   ```
+5. **Generate a self-signed certificate** for that IP:
+   ```powershell
+   cd server
+   npm run generate-cert -- <your-public-ip>
+   ```
+   This writes `server/certs/cert.pem` and `key.pem` (valid 7 days, gitignored). When these
+   files exist, the server automatically serves HTTPS on port 443 instead of plain HTTP on
+   3001 — no extra config needed.
+6. **Allow the port through Windows Firewall** (run PowerShell as Administrator):
+   ```powershell
+   New-NetFirewallRule -DisplayName "Manhunt" -Direction Inbound -Protocol TCP -LocalPort 443 -Action Allow
+   ```
+7. **Port forward on your router:** forward external TCP port 443 to your PC's local IP
+   (find it with `ipconfig`, look for "IPv4 Address") on port 443. This is in your router's
+   admin page (varies by router/ISP).
+8. **Start the server:**
+   ```powershell
+   npm start
+   ```
+   It should print `listening on port 443 (https)`.
+9. **Share the URL** with friends: `https://<your-public-ip>/`. Each of them will get a
+   browser warning about the certificate the first time — that's expected for a self-signed
+   cert; they tap "Advanced" → "Proceed" (wording varies by browser) once, then the app and
+   GPS permission work normally.
+
+When the game's over: stop the server (Ctrl+C), remove the port forward on your router, and
+optionally remove the firewall rule (`Remove-NetFirewallRule -DisplayName "Manhunt"`).
+
 ## Deploying so friends can join from anywhere
 
 Deploy `server/` (which serves the built `client/dist`) to any Node host with a persistent
