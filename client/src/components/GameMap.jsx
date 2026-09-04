@@ -1,24 +1,43 @@
-import { MapContainer, TileLayer, Marker, Popup, Circle, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, Circle, ZoomControl, useMap } from 'react-leaflet';
 import L from 'leaflet';
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 const ROLE_EMOJI = { hunter: '🔴', runner: '🏃', spectator: '👀' };
 
+const LAYERS = {
+  street: {
+    label: 'Street',
+    icon: '🗺️',
+    url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+    attribution: '&copy; OpenStreetMap contributors',
+    maxZoom: 19,
+  },
+  satellite: {
+    label: 'Satellite',
+    icon: '🛰️',
+    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+    attribution: 'Tiles &copy; Esri &mdash; Esri, Maxar, Earthstar Geographics',
+    maxZoom: 19,
+  },
+};
+
 function iconFor(player) {
-  const emoji = player.caught ? '💀' : ROLE_EMOJI[player.role] || '📍';
+  const badge = player.caught ? '💀' : ROLE_EMOJI[player.role] || '📍';
   const opacity = player.connected ? 1 : 0.4;
+  const inner = player.avatar
+    ? `<img src="${player.avatar}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;" />`
+    : `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:${player.color};font-weight:700;color:#fff;">${(player.name || '?').charAt(0).toUpperCase()}</div>`;
+
   return L.divIcon({
     className: 'player-marker',
-    html: `<div style="
-      background:${player.color};
-      opacity:${opacity};
-      width:32px;height:32px;border-radius:50%;
-      display:flex;align-items:center;justify-content:center;
-      border:2px solid white;box-shadow:0 1px 4px rgba(0,0,0,0.5);
-      font-size:16px;">${emoji}</div>`,
-    iconSize: [32, 32],
-    iconAnchor: [16, 16],
-    popupAnchor: [0, -16],
+    html: `
+      <div style="position:relative;width:36px;height:36px;opacity:${opacity};">
+        <div style="width:36px;height:36px;border-radius:50%;overflow:hidden;border:3px solid ${player.color};box-shadow:0 2px 6px rgba(0,0,0,0.5);">${inner}</div>
+        <div style="position:absolute;bottom:-4px;right:-4px;width:18px;height:18px;border-radius:50%;background:#1e293b;border:2px solid #fff;display:flex;align-items:center;justify-content:center;font-size:10px;">${badge}</div>
+      </div>`,
+    iconSize: [36, 36],
+    iconAnchor: [18, 18],
+    popupAnchor: [0, -18],
   });
 }
 
@@ -28,7 +47,7 @@ function FitToPlayers({ players }) {
   useEffect(() => {
     if (located.length === 0) return;
     if (located.length === 1) {
-      map.setView([located[0].lat, located[0].lng], 16);
+      map.setView([located[0].lat, located[0].lng], 18);
     } else {
       const bounds = L.latLngBounds(located.map((p) => [p.lat, p.lng]));
       map.fitBounds(bounds.pad(0.3));
@@ -48,30 +67,40 @@ function timeAgo(ts) {
 }
 
 export default function GameMap({ players }) {
+  const [layerKey, setLayerKey] = useState('street');
+  const layer = LAYERS[layerKey];
   const located = useMemo(() => players.filter((p) => p.lat != null && p.lng != null), [players]);
   const center = located.length > 0 ? [located[0].lat, located[0].lng] : [37.7749, -122.4194];
 
   return (
-    <MapContainer center={center} zoom={15} className="map">
-      <TileLayer
-        attribution='&copy; OpenStreetMap contributors'
-        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-      />
-      <FitToPlayers players={players} />
-      {located.map((p) => (
-        <Marker key={p.id} position={[p.lat, p.lng]} icon={iconFor(p)}>
-          {p.accuracy ? <Circle center={[p.lat, p.lng]} radius={p.accuracy} pathOptions={{ color: p.color, opacity: 0.3 }} /> : null}
-          <Popup>
-            <strong>{p.name}</strong> {p.caught ? '(caught)' : ''}
-            <br />
-            {p.role}
-            <br />
-            Updated {timeAgo(p.last_update)}
-            <br />
-            {p.connected ? 'Online' : 'Offline'}
-          </Popup>
-        </Marker>
-      ))}
-    </MapContainer>
+    <div className="map-wrap">
+      <MapContainer center={center} zoom={16} maxZoom={19} zoomControl={false} className="map">
+        <TileLayer key={layerKey} attribution={layer.attribution} url={layer.url} maxZoom={layer.maxZoom} />
+        <ZoomControl position="bottomright" />
+        <FitToPlayers players={players} />
+        {located.map((p) => (
+          <Marker key={p.id} position={[p.lat, p.lng]} icon={iconFor(p)}>
+            {p.accuracy ? <Circle center={[p.lat, p.lng]} radius={p.accuracy} pathOptions={{ color: p.color, opacity: 0.3 }} /> : null}
+            <Popup>
+              <strong>{p.name}</strong> {p.caught ? '(caught)' : ''}
+              <br />
+              {p.role}
+              <br />
+              Updated {timeAgo(p.last_update)}
+              <br />
+              {p.connected ? 'Online' : 'Offline'}
+            </Popup>
+          </Marker>
+        ))}
+      </MapContainer>
+
+      <button
+        className="layer-toggle"
+        onClick={() => setLayerKey(layerKey === 'street' ? 'satellite' : 'street')}
+        title="Toggle satellite/street view"
+      >
+        {layerKey === 'street' ? '🛰️ Satellite' : '🗺️ Street'}
+      </button>
+    </div>
   );
 }

@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { fileToResizedDataUrl } from '../lib/image.js';
+import { primeAudioContext } from '../lib/sound.js';
 
 const INTERVAL_OPTIONS = [
   { label: '5 seconds', value: 5 },
@@ -30,14 +32,28 @@ export default function Home({ onCreate, onJoin, connected, connecting, error })
   const [tagRadiusMeters, setTagRadiusMeters] = useState(15);
 
   const [joinCode, setJoinCode] = useState('');
+  const [avatar, setAvatar] = useState(null);
+  const [avatarError, setAvatarError] = useState('');
+
+  async function handleAvatarFile(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setAvatarError('');
+    try {
+      setAvatar(await fileToResizedDataUrl(file));
+    } catch {
+      setAvatarError('Could not process that image');
+    }
+  }
 
   function submit(e) {
     e.preventDefault();
     if (!playerName.trim()) return;
+    primeAudioContext();
     if (mode === 'create') {
-      onCreate({ roomName, pingIntervalSeconds, tagRadiusMeters, playerName, role });
+      onCreate({ roomName, pingIntervalSeconds, tagRadiusMeters, playerName, role, avatar });
     } else {
-      onJoin({ code: joinCode.trim().toUpperCase(), playerName, role });
+      onJoin({ code: joinCode.trim().toUpperCase(), playerName, role, avatar });
     }
   }
 
@@ -90,6 +106,22 @@ export default function Home({ onCreate, onJoin, connected, connecting, error })
               />
             </label>
           )}
+
+          <div className="avatar-picker">
+            <label className="avatar-picker-circle">
+              {avatar ? (
+                <img src={avatar} alt="Your avatar" />
+              ) : (
+                <span className="avatar-picker-plus">+</span>
+              )}
+              <input type="file" accept="image/*" hidden onChange={handleAvatarFile} />
+            </label>
+            <div className="avatar-picker-text">
+              <div>Profile picture</div>
+              <span className="hint">Optional — shown on the map &amp; player list</span>
+              {avatarError && <div className="error">{avatarError}</div>}
+            </div>
+          </div>
 
           <label>
             Your name

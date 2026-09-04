@@ -23,6 +23,7 @@ db.exec(`
     name TEXT NOT NULL,
     role TEXT NOT NULL DEFAULT 'runner',
     color TEXT NOT NULL,
+    avatar TEXT,
     lat REAL,
     lng REAL,
     accuracy REAL,
@@ -46,6 +47,11 @@ db.exec(`
 const roomColumns = db.prepare('PRAGMA table_info(rooms)').all().map((c) => c.name);
 if (!roomColumns.includes('tag_radius_meters')) {
   db.exec('ALTER TABLE rooms ADD COLUMN tag_radius_meters INTEGER NOT NULL DEFAULT 15');
+}
+
+const playerColumns = db.prepare('PRAGMA table_info(players)').all().map((c) => c.name);
+if (!playerColumns.includes('avatar')) {
+  db.exec('ALTER TABLE players ADD COLUMN avatar TEXT');
 }
 
 export default db;

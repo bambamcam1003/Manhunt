@@ -14,11 +14,17 @@ at a chosen interval, positions show up live on a shared map, and there's a grou
   player's latest position to the room, shown on a live map.
 - **Auto-tag by proximity** — whenever a hunter's and a runner's GPS positions come within
   the room's tag radius of each other, the runner is automatically marked "caught" (no
-  button press needed) and it's announced in chat. Hunters can also manually toggle
-  "Caught" from the Players tab, for overrides or when GPS is unreliable.
+  button press needed), it's announced in chat, and the caught player's own screen flashes
+  red with an alert tone/vibration. Hunters can also manually toggle "Caught" from the
+  Players tab, for overrides or when GPS is unreliable.
 - **Randomize teams** — from the Players tab, pick how many hunters you want and hit
   "Randomize Teams" to shuffle everyone (except spectators) into hunters/runners and reset
   catch status for a new round.
+- **Profile pictures** — optionally add a photo when you join (or change it anytime by
+  tapping your avatar in the game header); it shows up on the map marker and player list.
+  No photo needed — you get a colored initial avatar instead.
+- **Map**: live OpenStreetMap view with a satellite toggle (Esri World Imagery) and zoom up
+  to street level.
 - The ping interval and tag radius can both be changed by anyone mid-game (e.g. slow the
   ping down to save battery, widen the tag radius if GPS is noisy).
 - There's a group chat tab for coordinating/trash talk.

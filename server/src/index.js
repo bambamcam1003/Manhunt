@@ -15,6 +15,7 @@ import {
   setPlayerConnected,
   setPlayerRole,
   setPlayerCaught,
+  setPlayerAvatar,
   updatePlayerLocation,
   addMessage,
   getRecentMessages,
@@ -23,6 +24,15 @@ import {
   randomizeTeams,
 } from './rooms.js';
 import { haversineDistanceMeters } from './geo.js';
+
+const MAX_AVATAR_DATA_URL_LENGTH = 300000; // ~220KB decoded; client compresses well below this
+
+function sanitizeAvatar(avatar) {
+  if (!avatar || typeof avatar !== 'string') return null;
+  if (!avatar.startsWith('data:image/')) return null;
+  if (avatar.length > MAX_AVATAR_DATA_URL_LENGTH) return null;
+  return avatar;
+}
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -92,11 +102,11 @@ function checkProximityTags(roomCode, movedPlayerId) {
 }
 
 io.on('connection', (socket) => {
-  socket.on('create-room', ({ roomName, pingIntervalSeconds, tagRadiusMeters, playerName, role }, cb) => {
+  socket.on('create-room', ({ roomName, pingIntervalSeconds, tagRadiusMeters, playerName, role, avatar }, cb) => {
     try {
       if (!playerName || !playerName.trim()) throw new Error('Name is required');
       const room = createRoom(roomName, Number(pingIntervalSeconds) || 30, Number(tagRadiusMeters) || 15);
-      const player = addPlayer({ roomCode: room.code, name: playerName.trim(), role: role || 'runner' });
+      const player = addPlayer({ roomCode: room.code, name: playerName.trim(), role: role || 'runner', avatar: sanitizeAvatar(avatar) });
 
       socket.data.playerId = player.id;
       socket.data.roomCode = room.code;
@@ -112,12 +122,12 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('join-room', ({ code, playerName, role }, cb) => {
+  socket.on('join-room', ({ code, playerName, role, avatar }, cb) => {
     try {
       const room = getRoom(code);
       if (!room) throw new Error('Room not found');
       if (!playerName || !playerName.trim()) throw new Error('Name is required');
-      const player = addPlayer({ roomCode: room.code, name: playerName.trim(), role: role || 'runner' });
+      const player = addPlayer({ roomCode: room.code, name: playerName.trim(), role: role || 'runner', avatar: sanitizeAvatar(avatar) });
 
       socket.data.playerId = player.id;
       socket.data.roomCode = room.code;
@@ -167,6 +177,16 @@ io.on('connection', (socket) => {
     if (!['hunter', 'runner', 'spectator'].includes(role)) return;
     setPlayerRole(playerId, role);
     broadcastRoom(roomCode);
+  });
+
+  socket.on('set-avatar', ({ avatar }, cb) => {
+    const { playerId, roomCode } = socket.data;
+    if (!playerId || !roomCode) { cb?.({ ok: false, error: 'Not in a room' }); return; }
+    const clean = sanitizeAvatar(avatar);
+    if (!clean) { cb?.({ ok: false, error: 'Image too large or invalid' }); return; }
+    setPlayerAvatar(playerId, clean);
+    broadcastRoom(roomCode);
+    cb?.({ ok: true });
   });
 
   socket.on('set-ping-interval', ({ seconds }) => {

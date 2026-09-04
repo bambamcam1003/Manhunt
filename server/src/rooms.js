@@ -44,13 +44,13 @@ function nextColor(code) {
   return PLAYER_COLORS[count % PLAYER_COLORS.length];
 }
 
-export function addPlayer({ roomCode, name, role }) {
+export function addPlayer({ roomCode, name, role, avatar }) {
   const id = nanoid(10);
   const color = nextColor(roomCode);
   db.prepare(
-    `INSERT INTO players (id, room_code, name, role, color, connected, last_update)
-     VALUES (?, ?, ?, ?, ?, 1, ?)`
-  ).run(id, roomCode, name, role || 'runner', color, Date.now());
+    `INSERT INTO players (id, room_code, name, role, color, avatar, connected, last_update)
+     VALUES (?, ?, ?, ?, ?, ?, 1, ?)`
+  ).run(id, roomCode, name, role || 'runner', color, avatar || null, Date.now());
   return getPlayer(id);
 }
 
@@ -68,6 +68,10 @@ export function setPlayerRole(id, role) {
 
 export function setPlayerCaught(id, caught) {
   db.prepare('UPDATE players SET caught = ? WHERE id = ?').run(caught ? 1 : 0, id);
+}
+
+export function setPlayerAvatar(id, avatar) {
+  db.prepare('UPDATE players SET avatar = ? WHERE id = ?').run(avatar || null, id);
 }
 
 const assignRoles = db.transaction((assignments) => {

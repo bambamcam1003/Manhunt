@@ -1,8 +1,11 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { socket } from '../lib/socket.js';
+import { fileToResizedDataUrl } from '../lib/image.js';
+import { playTagAlertSound } from '../lib/sound.js';
 import GameMap from './GameMap.jsx';
 import PlayerList from './PlayerList.jsx';
 import Chat from './Chat.jsx';
+import Avatar from './Avatar.jsx';
 
 const INTERVAL_OPTIONS = [5, 10, 30, 60, 120, 300, 600];
 const TAG_RADIUS_OPTIONS = [5, 10, 15, 20, 30, 50, 100];
@@ -16,8 +19,11 @@ export default function Game({ room, player, players, messages, onLeave }) {
   const [tab, setTab] = useState('map');
   const [geoError, setGeoError] = useState('');
   const [lastSent, setLastSent] = useState(null);
-  const [role, setRole] = useState(player.role);
+  const [flashing, setFlashing] = useState(false);
+  const [avatarError, setAvatarError] = useState('');
   const intervalRef = useRef(null);
+  const avatarInputRef = useRef(null);
+  const wasCaughtRef = useRef(null);
 
   const me = players.find((p) => p.id === player.id) || player;
 
@@ -54,8 +60,25 @@ export default function Game({ room, player, players, messages, onLeave }) {
     return () => clearInterval(intervalRef.current);
   }, [room.ping_interval_seconds, sendLocation]);
 
+  // Flash the screen red + play a sound the moment *this* player transitions
+  // into "caught" (proximity auto-tag or a hunter's manual toggle).
+  useEffect(() => {
+    if (wasCaughtRef.current === null) {
+      wasCaughtRef.current = !!me.caught;
+      return;
+    }
+    if (me.caught && !wasCaughtRef.current) {
+      setFlashing(true);
+      playTagAlertSound();
+      if (navigator.vibrate) navigator.vibrate([120, 80, 120]);
+      const t = setTimeout(() => setFlashing(false), 700);
+      wasCaughtRef.current = true;
+      return () => clearTimeout(t);
+    }
+    wasCaughtRef.current = !!me.caught;
+  }, [me.caught]);
+
   function changeRole(newRole) {
-    setRole(newRole);
     socket.emit('set-role', { role: newRole });
   }
 
@@ -71,17 +94,51 @@ export default function Game({ room, player, players, messages, onLeave }) {
     navigator.clipboard?.writeText(room.code).catch(() => {});
   }
 
+  async function handleAvatarFile(e) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    setAvatarError('');
+    try {
+      const dataUrl = await fileToResizedDataUrl(file);
+      socket.emit('set-avatar', { avatar: dataUrl }, (res) => {
+        if (!res.ok) setAvatarError(res.error || 'Failed to set photo');
+      });
+    } catch {
+      setAvatarError('Could not process that image');
+    }
+  }
+
   return (
     <div className="screen game">
+      {flashing && <div className="tag-flash" />}
+
       <header className="game-header">
-        <div>
-          <div className="room-name">{room.name}</div>
-          <button className="room-code" onClick={copyCode} title="Tap to copy">
-            {room.code}
+        <div className="header-identity">
+          <button
+            className="avatar-edit-btn"
+            onClick={() => avatarInputRef.current?.click()}
+            title="Change your photo"
+          >
+            <Avatar player={me} size={40} />
+            <span className="avatar-edit-badge">✎</span>
           </button>
+          <input
+            ref={avatarInputRef}
+            type="file"
+            accept="image/*"
+            hidden
+            onChange={handleAvatarFile}
+          />
+          <div>
+            <div className="room-name">{room.name}</div>
+            <button className="room-code" onClick={copyCode} title="Tap to copy">
+              {room.code}
+            </button>
+          </div>
         </div>
         <div className="header-actions">
-          <select value={role} onChange={(e) => changeRole(e.target.value)} className="role-select">
+          <select value={me.role} onChange={(e) => changeRole(e.target.value)} className="role-select">
             <option value="runner">Runner</option>
             <option value="hunter">Hunter</option>
             <option value="spectator">Spectator</option>
@@ -91,6 +148,7 @@ export default function Game({ room, player, players, messages, onLeave }) {
       </header>
 
       {geoError && <div className="banner error">{geoError}</div>}
+      {avatarError && <div className="banner error">{avatarError}</div>}
 
       <div className="ping-bar">
         <span>

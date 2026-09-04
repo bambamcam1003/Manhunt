@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { socket } from '../lib/socket.js';
+import Avatar from './Avatar.jsx';
 
 function timeAgo(ts) {
   if (!ts) return 'never';
@@ -74,11 +75,11 @@ export default function PlayerList({ players, me }) {
       <RandomizeTeams players={players} />
       {sorted.map((p) => (
         <div className={`player-row${p.connected ? '' : ' offline'}`} key={p.id}>
-          <span className="dot" style={{ background: p.color }} />
+          <Avatar player={p} size={40} />
           <div className="player-info">
             <div className="player-name">
               {p.name}{p.id === me.id ? ' (you)' : ''}
-              {p.caught && <span className="badge caught">caught</span>}
+              {!!p.caught && <span className="badge caught">caught</span>}
               {!p.connected && <span className="badge offline">offline</span>}
             </div>
             <div className="player-meta">
