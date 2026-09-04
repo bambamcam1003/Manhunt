@@ -40,8 +40,10 @@ at a chosen interval, positions show up live on a shared map, and there's a grou
 - **Profile pictures** — optionally add a photo when you join (or change it anytime by
   tapping your avatar in the game header); it shows up on the map marker and player list.
   No photo needed — you get a colored initial avatar instead.
-- **Map**: live OpenStreetMap view with a satellite toggle (Esri World Imagery) and zoom up
-  to street level.
+- **Map**: tap the map style pill to cycle between Street (OpenStreetMap), Satellite (Esri
+  World Imagery — global, but can have clouds baked into the imagery for some areas/dates),
+  and USGS Aerial (real aerial photography, US-only, essentially cloud-free since it's flown
+  under clear-sky conditions). Zooms up to street level.
 - A red dot appears on the Chat tab whenever a new message (including system announcements
   like tags and round starts) arrives while you're looking at a different tab.
 - The ping intervals, tag radius, and start delay can all be changed by anyone mid-game

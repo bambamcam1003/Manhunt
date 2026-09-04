@@ -4,6 +4,9 @@ import { useEffect, useMemo, useState } from 'react';
 
 const ROLE_EMOJI = { hunter: '🔴', runner: '🏃', spectator: '👀' };
 
+// Cycle order for the layer-toggle button.
+const LAYER_ORDER = ['street', 'satellite', 'usgs'];
+
 const LAYERS = {
   street: {
     label: 'Street',
@@ -18,6 +21,20 @@ const LAYERS = {
     url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
     attribution: 'Tiles &copy; Esri &mdash; Esri, Maxar, Earthstar Geographics',
     maxZoom: 19,
+  },
+  // Real aerial photography (not a satellite composite), flown specifically
+  // under clear-sky conditions -- effectively cloud-free, unlike Esri's
+  // imagery which can have clouds baked in for some areas/dates. US-only
+  // coverage, and its native detail tops out around z16 (Leaflet upscales
+  // beyond that automatically via maxNativeZoom).
+  usgs: {
+    label: 'USGS Aerial',
+    description: 'US only — real aerial photography, no clouds',
+    icon: '🌎',
+    url: 'https://basemap.nationalmap.gov/arcgis/rest/services/USGSImageryOnly/MapServer/tile/{z}/{y}/{x}',
+    attribution: 'Imagery courtesy USGS The National Map',
+    maxZoom: 19,
+    maxNativeZoom: 16,
   },
 };
 
@@ -98,7 +115,13 @@ export default function GameMap({ players, freshThresholdMs = 60000, viewerRole 
   return (
     <div className="map-wrap">
       <MapContainer center={center} zoom={16} maxZoom={19} zoomControl={false} className="map">
-        <TileLayer key={layerKey} attribution={layer.attribution} url={layer.url} maxZoom={layer.maxZoom} />
+        <TileLayer
+          key={layerKey}
+          attribution={layer.attribution}
+          url={layer.url}
+          maxZoom={layer.maxZoom}
+          maxNativeZoom={layer.maxNativeZoom}
+        />
         <ZoomControl position="bottomright" />
         <InvalidateSizeOnResize />
         <FitToPlayers players={players} />
@@ -128,10 +151,13 @@ export default function GameMap({ players, freshThresholdMs = 60000, viewerRole 
 
       <button
         className="layer-toggle"
-        onClick={() => setLayerKey(layerKey === 'street' ? 'satellite' : 'street')}
-        title="Toggle satellite/street view"
+        onClick={() => {
+          const next = LAYER_ORDER[(LAYER_ORDER.indexOf(layerKey) + 1) % LAYER_ORDER.length];
+          setLayerKey(next);
+        }}
+        title={layer.description || 'Cycle map style (street / satellite / USGS aerial)'}
       >
-        {layerKey === 'street' ? '🛰️ Satellite' : '🗺️ Street'}
+        {layer.icon} {layer.label}
       </button>
 
       {viewerRole && (
