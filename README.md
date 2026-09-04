@@ -18,9 +18,11 @@ at a chosen interval, positions show up live on a shared map, and there's a grou
   "next ping in Xs" countdown for their own device.
 - **Auto-tag by proximity** — whenever a hunter's and a runner's GPS positions come within
   the room's tag radius of each other, the runner is automatically marked "caught" (no
-  button press needed), it's announced in chat, and the caught player's own screen flashes
-  red with an alert tone/vibration. Hunters can also manually toggle "Caught" from the
-  Players tab, for overrides or when GPS is unreliable.
+  button press needed) and it's announced in chat. The runner's own screen flashes red with
+  an alert tone/vibration; the hunter who made the catch gets their own flash — green, with
+  a distinct triumphant sound and a "You caught X!" banner. Hunters can also manually toggle
+  "Caught" from the Players tab (same catch feedback applies), for overrides or when GPS is
+  unreliable.
 - **Randomize teams** — from the Players tab, pick how many hunters you want and hit
   "Randomize Teams" to shuffle everyone (except spectators) into hunters/runners and reset
   catch status for a new round.

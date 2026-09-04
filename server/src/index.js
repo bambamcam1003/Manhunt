@@ -105,6 +105,7 @@ function checkProximityTags(roomCode, movedPlayerId) {
         system: true,
       });
       io.to(roomCode).emit('chat-message', sysMsg);
+      io.to(hunter.id).emit('tag-success', { targetName: runner.name });
     }
   }
 }
@@ -146,6 +147,7 @@ io.on('connection', (socket) => {
       socket.data.playerId = player.id;
       socket.data.roomCode = room.code;
       socket.join(room.code);
+      socket.join(player.id);
 
       const sysMsg = addMessage({ roomCode: room.code, playerName: 'System', text: `${player.name} created the game.`, system: true });
       io.to(room.code).emit('chat-message', sysMsg);
@@ -167,6 +169,7 @@ io.on('connection', (socket) => {
       socket.data.playerId = player.id;
       socket.data.roomCode = room.code;
       socket.join(room.code);
+      socket.join(player.id);
 
       const sysMsg = addMessage({ roomCode: room.code, playerName: 'System', text: `${player.name} joined the game.`, system: true });
       io.to(room.code).emit('chat-message', sysMsg);
@@ -188,6 +191,7 @@ io.on('connection', (socket) => {
       socket.data.playerId = player.id;
       socket.data.roomCode = room.code;
       socket.join(room.code);
+      socket.join(player.id);
       setPlayerConnected(player.id, true);
 
       cb({ ok: true, room, player, messages: getRecentMessages(room.code) });
@@ -324,7 +328,9 @@ io.on('connection', (socket) => {
       system: true,
     });
     io.to(roomCode).emit('chat-message', sysMsg);
+    if (caught) socket.emit('tag-success', { targetName: target.name });
     broadcastRoom(roomCode);
+    cb?.({ ok: true });
   });
 
   socket.on('chat-message', ({ text }) => {

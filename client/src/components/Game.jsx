@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { socket } from '../lib/socket.js';
 import { fileToResizedDataUrl } from '../lib/image.js';
-import { playTagAlertSound } from '../lib/sound.js';
+import { playTagAlertSound, playCatchSound } from '../lib/sound.js';
 import GameMap from './GameMap.jsx';
 import PlayerList from './PlayerList.jsx';
 import Chat from './Chat.jsx';
@@ -23,6 +23,7 @@ export default function Game({ room, player, players, messages, onLeave }) {
   const [nextPingAt, setNextPingAt] = useState(null);
   const [now, setNow] = useState(Date.now());
   const [flashing, setFlashing] = useState(false);
+  const [catching, setCatching] = useState(null); // null = off, or the caught player's name
   const [avatarError, setAvatarError] = useState('');
   const intervalRef = useRef(null);
   const avatarInputRef = useRef(null);
@@ -102,6 +103,24 @@ export default function Game({ room, player, players, messages, onLeave }) {
     wasCaughtRef.current = !!me.caught;
   }, [me.caught]);
 
+  // Flash the screen green + play a sound when *this* hunter successfully
+  // tags someone (auto-tag or manual), targeted directly by the server.
+  useEffect(() => {
+    function onTagSuccess({ targetName }) {
+      setCatching(targetName);
+      playCatchSound();
+      if (navigator.vibrate) navigator.vibrate(150);
+    }
+    socket.on('tag-success', onTagSuccess);
+    return () => socket.off('tag-success', onTagSuccess);
+  }, []);
+
+  useEffect(() => {
+    if (!catching) return;
+    const t = setTimeout(() => setCatching(null), 700);
+    return () => clearTimeout(t);
+  }, [catching]);
+
   function changeRole(newRole) {
     socket.emit('set-role', { role: newRole });
   }
@@ -148,6 +167,11 @@ export default function Game({ room, player, players, messages, onLeave }) {
   return (
     <div className="screen game">
       {flashing && <div className="tag-flash" />}
+      {catching && (
+        <div className="tag-flash catch">
+          <div className="tag-flash-label">🎯 You caught {catching}!</div>
+        </div>
+      )}
 
       <header className="game-header">
         <div className="header-identity">
