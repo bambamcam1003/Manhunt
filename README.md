@@ -5,13 +5,16 @@ at a chosen interval, positions show up live on a shared map, and there's a grou
 
 ## How it works
 
-- **Create a game** — pick a game name, a GPS ping interval (5s to 10min), a tag radius
-  (5m to 100m), your name, and your role (Hunter / Runner / Spectator). You get a 5-letter
-  room code.
+- **Create a game** — pick a game name, separate GPS ping intervals for runners and for
+  hunters (5s to 10min each), a tag radius (5m to 100m), your name, and your role
+  (Hunter / Runner / Spectator). You get a 5-letter room code.
 - **Share the code** with friends — they open the app, tap "Join Game", enter the code and
   their name.
-- Everyone's browser pings its GPS on the chosen interval and the server broadcasts every
-  player's latest position to the room, shown on a live map.
+- Everyone's browser pings its GPS on their own role's interval and the server broadcasts
+  every player's latest position to the room, shown on a live map. Hunters and runners can
+  be given different ping rates (e.g. hunters ping every 5s for a tighter chase while
+  runners ping every minute to save battery) — each player's game screen shows a live
+  "next ping in Xs" countdown for their own device.
 - **Auto-tag by proximity** — whenever a hunter's and a runner's GPS positions come within
   the room's tag radius of each other, the runner is automatically marked "caught" (no
   button press needed), it's announced in chat, and the caught player's own screen flashes
@@ -25,7 +28,7 @@ at a chosen interval, positions show up live on a shared map, and there's a grou
   No photo needed — you get a colored initial avatar instead.
 - **Map**: live OpenStreetMap view with a satellite toggle (Esri World Imagery) and zoom up
   to street level.
-- The ping interval and tag radius can both be changed by anyone mid-game (e.g. slow the
+- The ping intervals and tag radius can all be changed by anyone mid-game (e.g. slow the
   ping down to save battery, widen the tag radius if GPS is noisy).
 - There's a group chat tab for coordinating/trash talk.
 - The app is installable to your phone's home screen (PWA) for a more native feel.

@@ -13,6 +13,7 @@ db.exec(`
     code TEXT PRIMARY KEY,
     name TEXT NOT NULL,
     ping_interval_seconds INTEGER NOT NULL DEFAULT 30,
+    hunter_ping_interval_seconds INTEGER NOT NULL DEFAULT 30,
     tag_radius_meters INTEGER NOT NULL DEFAULT 15,
     created_at INTEGER NOT NULL
   );
@@ -47,6 +48,9 @@ db.exec(`
 const roomColumns = db.prepare('PRAGMA table_info(rooms)').all().map((c) => c.name);
 if (!roomColumns.includes('tag_radius_meters')) {
   db.exec('ALTER TABLE rooms ADD COLUMN tag_radius_meters INTEGER NOT NULL DEFAULT 15');
+}
+if (!roomColumns.includes('hunter_ping_interval_seconds')) {
+  db.exec('ALTER TABLE rooms ADD COLUMN hunter_ping_interval_seconds INTEGER NOT NULL DEFAULT 30');
 }
 
 const playerColumns = db.prepare('PRAGMA table_info(players)').all().map((c) => c.name);

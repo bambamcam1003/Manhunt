@@ -19,6 +19,8 @@ export default function Game({ room, player, players, messages, onLeave }) {
   const [tab, setTab] = useState('map');
   const [geoError, setGeoError] = useState('');
   const [lastSent, setLastSent] = useState(null);
+  const [nextPingAt, setNextPingAt] = useState(null);
+  const [now, setNow] = useState(Date.now());
   const [flashing, setFlashing] = useState(false);
   const [avatarError, setAvatarError] = useState('');
   const intervalRef = useRef(null);
@@ -26,6 +28,10 @@ export default function Game({ room, player, players, messages, onLeave }) {
   const wasCaughtRef = useRef(null);
 
   const me = players.find((p) => p.id === player.id) || player;
+  const isHunter = me.role === 'hunter';
+  const myIntervalSeconds = isHunter
+    ? (room.hunter_ping_interval_seconds ?? 30)
+    : room.ping_interval_seconds;
 
   const sendLocation = useCallback(() => {
     if (!navigator.geolocation) {
@@ -54,11 +60,23 @@ export default function Game({ room, player, players, messages, onLeave }) {
   }, []);
 
   useEffect(() => {
+    const ms = Math.max(5, myIntervalSeconds) * 1000;
     sendLocation();
-    const ms = Math.max(5, room.ping_interval_seconds) * 1000;
-    intervalRef.current = setInterval(sendLocation, ms);
+    setNextPingAt(Date.now() + ms);
+    intervalRef.current = setInterval(() => {
+      sendLocation();
+      setNextPingAt(Date.now() + ms);
+    }, ms);
     return () => clearInterval(intervalRef.current);
-  }, [room.ping_interval_seconds, sendLocation]);
+  }, [myIntervalSeconds, sendLocation]);
+
+  // Ticks once a second purely to keep the "next ping in Xs" countdown live.
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, []);
+
+  const countdownSeconds = nextPingAt ? Math.max(0, Math.round((nextPingAt - now) / 1000)) : null;
 
   // Flash the screen red + play a sound the moment *this* player transitions
   // into "caught" (proximity auto-tag or a hunter's manual toggle).
@@ -84,6 +102,10 @@ export default function Game({ room, player, players, messages, onLeave }) {
 
   function changeInterval(seconds) {
     socket.emit('set-ping-interval', { seconds: Number(seconds) });
+  }
+
+  function changeHunterInterval(seconds) {
+    socket.emit('set-hunter-ping-interval', { seconds: Number(seconds) });
   }
 
   function changeTagRadius(meters) {
@@ -152,7 +174,7 @@ export default function Game({ room, player, players, messages, onLeave }) {
 
       <div className="ping-bar">
         <span>
-          Ping every
+          🏃 Runners ping
           <select
             value={room.ping_interval_seconds}
             onChange={(e) => changeInterval(e.target.value)}
@@ -162,14 +184,35 @@ export default function Game({ room, player, players, messages, onLeave }) {
             ))}
           </select>
         </span>
+        <span>
+          🔴 Hunters ping
+          <select
+            value={room.hunter_ping_interval_seconds ?? 30}
+            onChange={(e) => changeHunterInterval(e.target.value)}
+          >
+            {INTERVAL_OPTIONS.map((s) => (
+              <option key={s} value={s}>{formatInterval(s)}</option>
+            ))}
+          </select>
+        </span>
+      </div>
+
+      <div className="ping-bar">
+        <span className="next-ping">
+          {countdownSeconds === null
+            ? 'Waiting for GPS...'
+            : countdownSeconds <= 0
+              ? 'Pinging now...'
+              : `Next ping in ${countdownSeconds}s`}
+        </span>
         <span className="last-sent">
-          {lastSent ? `Last sent ${new Date(lastSent).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}` : 'Waiting for GPS...'}
+          {lastSent ? `Last sent ${new Date(lastSent).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}` : ''}
         </span>
       </div>
 
       <div className="ping-bar">
         <span>
-          Auto-tag within
+          🎯 Auto-tag within
           <select
             value={room.tag_radius_meters ?? 15}
             onChange={(e) => changeTagRadius(e.target.value)}

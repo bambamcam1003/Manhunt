@@ -376,6 +376,8 @@ button:active {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
+  row-gap: 6px;
   min-width: 0;
   padding: 8px 16px;
   background: var(--panel-2);
@@ -383,6 +385,13 @@ button:active {
   color: var(--muted);
   border-bottom: 1px solid var(--border);
   gap: 12px;
+}
+
+.ping-bar span {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  white-space: nowrap;
 }
 
 .ping-bar select {
@@ -398,6 +407,11 @@ button:active {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.next-ping {
+  font-weight: 700;
+  color: var(--accent);
 }
 
 .game-body {

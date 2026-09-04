@@ -9,15 +9,23 @@ const PLAYER_COLORS = [
   '#e6beff', '#9a6324', '#800000', '#808000', '#000075',
 ];
 
-export function createRoom(name, pingIntervalSeconds, tagRadiusMeters) {
+export function createRoom(name, pingIntervalSeconds, tagRadiusMeters, hunterPingIntervalSeconds) {
   let code;
   do {
     code = roomCode();
   } while (db.prepare('SELECT 1 FROM rooms WHERE code = ?').get(code));
 
   db.prepare(
-    'INSERT INTO rooms (code, name, ping_interval_seconds, tag_radius_meters, created_at) VALUES (?, ?, ?, ?, ?)'
-  ).run(code, name || 'Manhunt', pingIntervalSeconds || 30, tagRadiusMeters || 15, Date.now());
+    `INSERT INTO rooms (code, name, ping_interval_seconds, hunter_ping_interval_seconds, tag_radius_meters, created_at)
+     VALUES (?, ?, ?, ?, ?, ?)`
+  ).run(
+    code,
+    name || 'Manhunt',
+    pingIntervalSeconds || 30,
+    hunterPingIntervalSeconds || 30,
+    tagRadiusMeters || 15,
+    Date.now()
+  );
 
   return getRoom(code);
 }
@@ -29,6 +37,10 @@ export function getRoom(code) {
 
 export function setPingInterval(code, seconds) {
   db.prepare('UPDATE rooms SET ping_interval_seconds = ? WHERE code = ?').run(seconds, code);
+}
+
+export function setHunterPingInterval(code, seconds) {
+  db.prepare('UPDATE rooms SET hunter_ping_interval_seconds = ? WHERE code = ?').run(seconds, code);
 }
 
 export function setTagRadius(code, meters) {

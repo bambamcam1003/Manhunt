@@ -29,6 +29,7 @@ export default function Home({ onCreate, onJoin, connected, connecting, error })
 
   const [roomName, setRoomName] = useState('My Manhunt Game');
   const [pingIntervalSeconds, setPingIntervalSeconds] = useState(30);
+  const [hunterPingIntervalSeconds, setHunterPingIntervalSeconds] = useState(30);
   const [tagRadiusMeters, setTagRadiusMeters] = useState(15);
 
   const [joinCode, setJoinCode] = useState('');
@@ -51,7 +52,7 @@ export default function Home({ onCreate, onJoin, connected, connecting, error })
     if (!playerName.trim()) return;
     primeAudioContext();
     if (mode === 'create') {
-      onCreate({ roomName, pingIntervalSeconds, tagRadiusMeters, playerName, role, avatar });
+      onCreate({ roomName, pingIntervalSeconds, hunterPingIntervalSeconds, tagRadiusMeters, playerName, role, avatar });
     } else {
       onJoin({ code: joinCode.trim().toUpperCase(), playerName, role, avatar });
     }
@@ -145,10 +146,24 @@ export default function Home({ onCreate, onJoin, connected, connecting, error })
 
           {mode === 'create' && (
             <label>
-              GPS ping interval
+              Runner GPS ping interval
               <select
                 value={pingIntervalSeconds}
                 onChange={(e) => setPingIntervalSeconds(Number(e.target.value))}
+              >
+                {INTERVAL_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
+                ))}
+              </select>
+            </label>
+          )}
+
+          {mode === 'create' && (
+            <label>
+              Hunter GPS ping interval
+              <select
+                value={hunterPingIntervalSeconds}
+                onChange={(e) => setHunterPingIntervalSeconds(Number(e.target.value))}
               >
                 {INTERVAL_OPTIONS.map((o) => (
                   <option key={o.value} value={o.value}>{o.label}</option>

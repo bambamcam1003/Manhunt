@@ -20,6 +20,7 @@ import {
   addMessage,
   getRecentMessages,
   setPingInterval,
+  setHunterPingInterval,
   setTagRadius,
   randomizeTeams,
 } from './rooms.js';
@@ -102,10 +103,15 @@ function checkProximityTags(roomCode, movedPlayerId) {
 }
 
 io.on('connection', (socket) => {
-  socket.on('create-room', ({ roomName, pingIntervalSeconds, tagRadiusMeters, playerName, role, avatar }, cb) => {
+  socket.on('create-room', ({ roomName, pingIntervalSeconds, hunterPingIntervalSeconds, tagRadiusMeters, playerName, role, avatar }, cb) => {
     try {
       if (!playerName || !playerName.trim()) throw new Error('Name is required');
-      const room = createRoom(roomName, Number(pingIntervalSeconds) || 30, Number(tagRadiusMeters) || 15);
+      const room = createRoom(
+        roomName,
+        Number(pingIntervalSeconds) || 30,
+        Number(tagRadiusMeters) || 15,
+        Number(hunterPingIntervalSeconds) || 30
+      );
       const player = addPlayer({ roomCode: room.code, name: playerName.trim(), role: role || 'runner', avatar: sanitizeAvatar(avatar) });
 
       socket.data.playerId = player.id;
@@ -195,6 +201,15 @@ io.on('connection', (socket) => {
     const s = Number(seconds);
     if (!s || s < 5) return;
     setPingInterval(roomCode, s);
+    broadcastRoom(roomCode);
+  });
+
+  socket.on('set-hunter-ping-interval', ({ seconds }) => {
+    const { roomCode } = socket.data;
+    if (!roomCode) return;
+    const s = Number(seconds);
+    if (!s || s < 5) return;
+    setHunterPingInterval(roomCode, s);
     broadcastRoom(roomCode);
   });
 
