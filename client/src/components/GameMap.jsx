@@ -1,4 +1,4 @@
-import { MapContainer, TileLayer, Marker, Popup, Tooltip, Circle, ZoomControl, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, Tooltip, Circle, Polyline, ZoomControl, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import { useEffect, useMemo, useState } from 'react';
 
@@ -100,16 +100,44 @@ function FitToPlayers({ players }) {
   return null;
 }
 
+// Renders each player's recent-position history as a fading trail of short
+// line segments -- older segments are more transparent than newer ones.
+function Trails({ trails, playersById }) {
+  return (
+    <>
+      {Array.from(trails.entries()).map(([id, points]) => {
+        const player = playersById.get(id);
+        if (!player || points.length < 2) return null;
+        return points.slice(1).map((point, i) => {
+          const prev = points[i];
+          const recency = (i + 1) / points.length; // 0 (oldest) .. 1 (newest)
+          return (
+            <Polyline
+              key={`${id}-${i}`}
+              positions={[[prev.lat, prev.lng], [point.lat, point.lng]]}
+              pathOptions={{ color: player.color, opacity: 0.15 + recency * 0.5, weight: 3 }}
+              interactive={false}
+            />
+          );
+        });
+      })}
+    </>
+  );
+}
+
 const VISIBILITY_LABEL = {
   hunter: '🔴 Hunters only',
   runner: '🏃 Runners only',
   spectator: '👀 Everyone',
 };
 
-export default function GameMap({ players, freshThresholdMs = 60000, viewerRole }) {
+const EMPTY_TRAILS = new Map();
+
+export default function GameMap({ players, freshThresholdMs = 60000, viewerRole, trails = EMPTY_TRAILS }) {
   const [layerKey, setLayerKey] = useState('street');
   const layer = LAYERS[layerKey];
   const located = useMemo(() => players.filter((p) => p.lat != null && p.lng != null), [players]);
+  const playersById = useMemo(() => new Map(players.map((p) => [p.id, p])), [players]);
   const center = located.length > 0 ? [located[0].lat, located[0].lng] : [37.7749, -122.4194];
 
   return (
@@ -125,6 +153,7 @@ export default function GameMap({ players, freshThresholdMs = 60000, viewerRole 
         <ZoomControl position="bottomright" />
         <InvalidateSizeOnResize />
         <FitToPlayers players={players} />
+        <Trails trails={trails} playersById={playersById} />
         {located.map((p) => {
           const isLive = !!p.connected && !!p.last_update && Date.now() - p.last_update < freshThresholdMs;
           return (

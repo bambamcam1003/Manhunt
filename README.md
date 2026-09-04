@@ -44,6 +44,13 @@ at a chosen interval, positions show up live on a shared map, and there's a grou
   World Imagery — global, but can have clouds baked into the imagery for some areas/dates),
   and USGS Aerial (real aerial photography, US-only, essentially cloud-free since it's flown
   under clear-sky conditions). Zooms up to street level.
+- **Win detection** — the moment every runner has been tagged (whether by auto-tag or a
+  manual "Caught"), the hunters win: a gold banner announces it and the win is posted to
+  chat. It stays won until someone hits "Restart Round", which resets it for the next round.
+- **Breadcrumb trails** — the map traces each visible teammate's last several minutes of
+  movement as a short fading line behind their marker, so you can see which way someone's
+  heading, not just where they are right now. Trails follow the same team-only visibility
+  rule as the markers.
 - A red dot appears on the Chat tab whenever a new message (including system announcements
   like tags and round starts) arrives while you're looking at a different tab.
 - The ping intervals, tag radius, and start delay can all be changed by anyone mid-game

@@ -60,13 +60,25 @@ export function startGame(code) {
   const room = getRoom(code);
   if (!room) return null;
   const startsAt = Date.now() + Math.max(0, room.countdown_seconds) * 1000;
-  db.prepare('UPDATE rooms SET game_starts_at = ? WHERE code = ?').run(startsAt, code);
+  db.prepare('UPDATE rooms SET game_starts_at = ?, winner = NULL WHERE code = ?').run(startsAt, code);
   resetCaughtForNonSpectators(code);
   return getRoom(code);
 }
 
 export function isGameLive(room) {
   return !!room.game_starts_at && Date.now() >= room.game_starts_at;
+}
+
+export function setWinner(code, winner) {
+  db.prepare('UPDATE rooms SET winner = ? WHERE code = ?').run(winner, code);
+}
+
+// Hunters win once every runner in the room has been tagged. Requires at
+// least one runner -- a room with none (e.g. everyone's a hunter/spectator)
+// has no win condition to trigger.
+export function areAllRunnersCaught(code) {
+  const runners = getPlayers(code).filter((p) => p.role === 'runner');
+  return runners.length > 0 && runners.every((p) => p.caught);
 }
 
 export function getPlayers(code) {

@@ -85,6 +85,7 @@ export default function Game({ room, player, players, messages, onLeave }) {
   const gameLive = !!gameStartsAt && now >= gameStartsAt;
   const gameCountingDown = !!gameStartsAt && now < gameStartsAt;
   const gameCountdownSeconds = gameCountingDown ? Math.max(0, Math.ceil((gameStartsAt - now) / 1000)) : 0;
+  const won = !!room.winner;
 
   // Flash the screen red + play a sound the moment *this* player transitions
   // into "caught" (proximity auto-tag or a hunter's manual toggle).
@@ -135,6 +136,32 @@ export default function Game({ room, player, players, messages, onLeave }) {
   useEffect(() => {
     if (tab === 'chat') setHasUnreadChat(false);
   }, [tab]);
+
+  // Recent-position breadcrumb trails, per player. Kept in a ref (not state)
+  // so it survives switching away from the Map tab and back — GameMap
+  // unmounts/remounts on tab switch, but Game.jsx stays mounted for the
+  // whole session. Only ever contains players whose location we can
+  // actually see (the server already strips cross-team lat/lng), so trails
+  // automatically respect the same team-visibility rule as the markers.
+  const trailsRef = useRef(new Map());
+  useEffect(() => {
+    const TRAIL_MAX_POINTS = 8;
+    const TRAIL_MAX_AGE_MS = 10 * 60 * 1000;
+    const cutoff = Date.now() - TRAIL_MAX_AGE_MS;
+
+    for (const p of players) {
+      if (p.lat == null || p.lng == null || !p.last_update) continue;
+      const trail = trailsRef.current.get(p.id) || [];
+      const lastPoint = trail[trail.length - 1];
+      if (!lastPoint || lastPoint.t !== p.last_update) {
+        trail.push({ lat: p.lat, lng: p.lng, t: p.last_update });
+        while (trail.length > TRAIL_MAX_POINTS || (trail.length > 1 && trail[0].t < cutoff)) {
+          trail.shift();
+        }
+        trailsRef.current.set(p.id, trail);
+      }
+    }
+  }, [players]);
 
   function changeRole(newRole) {
     socket.emit('set-role', { role: newRole });
@@ -228,6 +255,9 @@ export default function Game({ room, player, players, messages, onLeave }) {
       {gameCountingDown && (
         <div className="banner countdown">🚦 Game starts in {gameCountdownSeconds}s — get ready!</div>
       )}
+      {won && (
+        <div className="banner won">🏆 Hunters win! All runners caught.</div>
+      )}
 
       <div className="ping-bar">
         <span>
@@ -302,7 +332,14 @@ export default function Game({ room, player, players, messages, onLeave }) {
       </div>
 
       <main className="game-body">
-        {tab === 'map' && <GameMap players={players} freshThresholdMs={freshThresholdMs} viewerRole={me.role} />}
+        {tab === 'map' && (
+          <GameMap
+            players={players}
+            freshThresholdMs={freshThresholdMs}
+            viewerRole={me.role}
+            trails={trailsRef.current}
+          />
+        )}
         {tab === 'players' && <PlayerList players={players} me={me} gameLive={gameLive} />}
         {tab === 'chat' && <Chat messages={messages} me={me} />}
       </main>

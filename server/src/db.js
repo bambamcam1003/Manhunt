@@ -17,6 +17,7 @@ db.exec(`
     tag_radius_feet INTEGER NOT NULL DEFAULT 50,
     countdown_seconds INTEGER NOT NULL DEFAULT 30,
     game_starts_at INTEGER,
+    winner TEXT,
     created_at INTEGER NOT NULL
   );
 
@@ -62,6 +63,9 @@ if (!roomColumns.includes('countdown_seconds')) {
 }
 if (!roomColumns.includes('game_starts_at')) {
   db.exec('ALTER TABLE rooms ADD COLUMN game_starts_at INTEGER');
+}
+if (!roomColumns.includes('winner')) {
+  db.exec('ALTER TABLE rooms ADD COLUMN winner TEXT');
 }
 
 const playerColumns = db.prepare('PRAGMA table_info(players)').all().map((c) => c.name);

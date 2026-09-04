@@ -25,6 +25,8 @@ import {
   setCountdownSeconds,
   startGame,
   isGameLive,
+  setWinner,
+  areAllRunnersCaught,
   randomizeTeams,
 } from './rooms.js';
 import { haversineDistanceMeters, metersToFeet } from './geo.js';
@@ -116,7 +118,26 @@ function checkProximityTags(roomCode, movedPlayerId) {
       });
       io.to(roomCode).emit('chat-message', sysMsg);
       io.to(hunter.id).emit('tag-success', { targetName: runner.name });
+      maybeDeclareWinner(roomCode);
     }
+  }
+}
+
+// Declares "hunters win" the moment every runner has been tagged (auto or
+// manual). One-way per round -- stays won until the next Start/Restart,
+// which clears `winner` back to null.
+function maybeDeclareWinner(roomCode) {
+  const room = getRoom(roomCode);
+  if (!room || room.winner) return;
+  if (areAllRunnersCaught(roomCode)) {
+    setWinner(roomCode, 'hunters');
+    const sysMsg = addMessage({
+      roomCode,
+      playerName: 'System',
+      text: '🏆 All runners caught — Hunters win!',
+      system: true,
+    });
+    io.to(roomCode).emit('chat-message', sysMsg);
   }
 }
 
@@ -338,7 +359,10 @@ io.on('connection', (socket) => {
       system: true,
     });
     io.to(roomCode).emit('chat-message', sysMsg);
-    if (caught) socket.emit('tag-success', { targetName: target.name });
+    if (caught) {
+      socket.emit('tag-success', { targetName: target.name });
+      maybeDeclareWinner(roomCode);
+    }
     broadcastRoom(roomCode);
     cb?.({ ok: true });
   });

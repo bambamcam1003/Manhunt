@@ -386,6 +386,15 @@ button:active {
   50% { opacity: 0.75; }
 }
 
+.banner.won {
+  background: linear-gradient(135deg, #facc15, #f59e0b);
+  color: #1a1005;
+  font-weight: 800;
+  font-size: 15px;
+  padding: 12px 16px;
+  box-shadow: 0 0 20px rgba(250, 204, 21, 0.5);
+}
+
 .ping-bar {
   display: flex;
   align-items: center;
