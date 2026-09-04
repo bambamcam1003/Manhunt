@@ -51,6 +51,10 @@ at a chosen interval, positions show up live on a shared map, and there's a grou
   movement as a short fading line behind their marker, so you can see which way someone's
   heading, not just where they are right now. Trails follow the same team-only visibility
   rule as the markers.
+- **Match timer** — optionally cap a round with a clock (5 minutes up to 1 hour, or no limit
+  by default). A live "Time remaining" countdown shows once tagging goes live; if it hits
+  zero before hunters catch everyone, the runners win — announced the same way as a hunters'
+  win, and cleared on the next "Restart Round".
 - A red dot appears on the Chat tab whenever a new message (including system announcements
   like tags and round starts) arrives while you're looking at a different tab.
 - The ping intervals, tag radius, and start delay can all be changed by anyone mid-game

@@ -10,10 +10,17 @@ import Avatar from './Avatar.jsx';
 const INTERVAL_OPTIONS = [5, 10, 30, 60, 120, 300, 600];
 const TAG_RADIUS_OPTIONS = [10, 15, 25, 50, 75, 100, 200];
 const COUNTDOWN_OPTIONS = [0, 5, 10, 15, 30, 60, 120, 300];
+const MATCH_DURATION_OPTIONS = [0, 300, 600, 900, 1200, 1800, 2700, 3600];
 
 function formatInterval(seconds) {
   if (seconds < 60) return `${seconds}s`;
   return `${Math.round(seconds / 60)}m`;
+}
+
+function formatClock(totalSeconds) {
+  const m = Math.floor(totalSeconds / 60);
+  const s = totalSeconds % 60;
+  return `${m}:${String(s).padStart(2, '0')}`;
 }
 
 export default function Game({ room, player, players, messages, onLeave }) {
@@ -86,6 +93,9 @@ export default function Game({ room, player, players, messages, onLeave }) {
   const gameCountingDown = !!gameStartsAt && now < gameStartsAt;
   const gameCountdownSeconds = gameCountingDown ? Math.max(0, Math.ceil((gameStartsAt - now) / 1000)) : 0;
   const won = !!room.winner;
+
+  const gameEndsAt = room.game_ends_at;
+  const matchTimerSeconds = gameLive && gameEndsAt ? Math.max(0, Math.ceil((gameEndsAt - now) / 1000)) : null;
 
   // Flash the screen red + play a sound the moment *this* player transitions
   // into "caught" (proximity auto-tag or a hunter's manual toggle).
@@ -183,6 +193,10 @@ export default function Game({ room, player, players, messages, onLeave }) {
     socket.emit('set-countdown', { seconds: Number(seconds) });
   }
 
+  function changeMatchDuration(seconds) {
+    socket.emit('set-match-duration', { seconds: Number(seconds) });
+  }
+
   function handleStartGame() {
     socket.emit('start-game', {});
   }
@@ -256,7 +270,11 @@ export default function Game({ room, player, players, messages, onLeave }) {
         <div className="banner countdown">🚦 Game starts in {gameCountdownSeconds}s — get ready!</div>
       )}
       {won && (
-        <div className="banner won">🏆 Hunters win! All runners caught.</div>
+        <div className="banner won">
+          {room.winner === 'hunters'
+            ? '🏆 Hunters win! All runners caught.'
+            : "🏃 Runners win! They survived the clock."}
+        </div>
       )}
 
       <div className="ping-bar">
@@ -271,10 +289,30 @@ export default function Game({ room, player, players, messages, onLeave }) {
             ))}
           </select>
         </span>
+        <span>
+          ⏳ Match timer
+          <select
+            value={room.match_duration_seconds ?? 0}
+            onChange={(e) => changeMatchDuration(e.target.value)}
+          >
+            {MATCH_DURATION_OPTIONS.map((s) => (
+              <option key={s} value={s}>{s === 0 ? 'No limit' : formatInterval(s)}</option>
+            ))}
+          </select>
+        </span>
         <button className="btn small primary" onClick={handleStartGame}>
           {gameStartsAt ? '🔁 Restart Round' : '🚀 Start Game'}
         </button>
       </div>
+
+      {matchTimerSeconds !== null && (
+        <div className="ping-bar">
+          <span>⏳ Time remaining</span>
+          <span className="last-sent">
+            {matchTimerSeconds > 0 ? formatClock(matchTimerSeconds) : "Time's up"}
+          </span>
+        </div>
+      )}
 
       <div className="ping-bar">
         <span>

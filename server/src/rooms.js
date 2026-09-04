@@ -9,15 +9,15 @@ const PLAYER_COLORS = [
   '#e6beff', '#9a6324', '#800000', '#808000', '#000075',
 ];
 
-export function createRoom(name, pingIntervalSeconds, tagRadiusFeet, hunterPingIntervalSeconds, countdownSeconds) {
+export function createRoom(name, pingIntervalSeconds, tagRadiusFeet, hunterPingIntervalSeconds, countdownSeconds, matchDurationSeconds) {
   let code;
   do {
     code = roomCode();
   } while (db.prepare('SELECT 1 FROM rooms WHERE code = ?').get(code));
 
   db.prepare(
-    `INSERT INTO rooms (code, name, ping_interval_seconds, hunter_ping_interval_seconds, tag_radius_feet, countdown_seconds, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?)`
+    `INSERT INTO rooms (code, name, ping_interval_seconds, hunter_ping_interval_seconds, tag_radius_feet, countdown_seconds, match_duration_seconds, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
   ).run(
     code,
     name || 'Manhunt',
@@ -25,6 +25,7 @@ export function createRoom(name, pingIntervalSeconds, tagRadiusFeet, hunterPingI
     hunterPingIntervalSeconds || 30,
     tagRadiusFeet || 50,
     countdownSeconds ?? 30,
+    matchDurationSeconds || 0,
     Date.now()
   );
 
@@ -52,6 +53,10 @@ export function setCountdownSeconds(code, seconds) {
   db.prepare('UPDATE rooms SET countdown_seconds = ? WHERE code = ?').run(seconds, code);
 }
 
+export function setMatchDuration(code, seconds) {
+  db.prepare('UPDATE rooms SET match_duration_seconds = ? WHERE code = ?').run(seconds, code);
+}
+
 const resetCaughtForNonSpectators = db.transaction((roomCode) => {
   db.prepare("UPDATE players SET caught = 0 WHERE room_code = ? AND role != 'spectator'").run(roomCode);
 });
@@ -60,7 +65,8 @@ export function startGame(code) {
   const room = getRoom(code);
   if (!room) return null;
   const startsAt = Date.now() + Math.max(0, room.countdown_seconds) * 1000;
-  db.prepare('UPDATE rooms SET game_starts_at = ?, winner = NULL WHERE code = ?').run(startsAt, code);
+  const endsAt = room.match_duration_seconds > 0 ? startsAt + room.match_duration_seconds * 1000 : null;
+  db.prepare('UPDATE rooms SET game_starts_at = ?, game_ends_at = ?, winner = NULL WHERE code = ?').run(startsAt, endsAt, code);
   resetCaughtForNonSpectators(code);
   return getRoom(code);
 }

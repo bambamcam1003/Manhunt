@@ -23,6 +23,7 @@ import {
   setHunterPingInterval,
   setTagRadius,
   setCountdownSeconds,
+  setMatchDuration,
   startGame,
   isGameLive,
   setWinner,
@@ -33,6 +34,17 @@ import { haversineDistanceMeters, metersToFeet } from './geo.js';
 
 // Per-room timer that announces "tagging is live" when a start countdown elapses.
 const startTimers = new Map();
+// Per-room timer that declares "runners win" when the match duration elapses
+// without every runner being caught.
+const matchEndTimers = new Map();
+
+function clearMatchEndTimer(roomCode) {
+  const existing = matchEndTimers.get(roomCode);
+  if (existing) {
+    clearTimeout(existing);
+    matchEndTimers.delete(roomCode);
+  }
+}
 
 const MAX_AVATAR_DATA_URL_LENGTH = 300000; // ~220KB decoded; client compresses well below this
 
@@ -131,6 +143,7 @@ function maybeDeclareWinner(roomCode) {
   if (!room || room.winner) return;
   if (areAllRunnersCaught(roomCode)) {
     setWinner(roomCode, 'hunters');
+    clearMatchEndTimer(roomCode);
     const sysMsg = addMessage({
       roomCode,
       playerName: 'System',
@@ -139,6 +152,33 @@ function maybeDeclareWinner(roomCode) {
     });
     io.to(roomCode).emit('chat-message', sysMsg);
   }
+}
+
+// Declares "runners win" if the match timer runs out before every runner is
+// caught. Requires at least one runner, same as the hunters' win condition.
+// One-way per round -- stays won until the next Start/Restart.
+function declareRunnersWinOnTimeout(roomCode) {
+  matchEndTimers.delete(roomCode);
+  const room = getRoom(roomCode);
+  if (!room || room.winner) return;
+  const runners = getPlayers(roomCode).filter((p) => p.role === 'runner');
+  if (runners.length === 0) return;
+
+  setWinner(roomCode, 'runners');
+  const sysMsg = addMessage({
+    roomCode,
+    playerName: 'System',
+    text: "⏱️ Time's up — Runners win!",
+    system: true,
+  });
+  io.to(roomCode).emit('chat-message', sysMsg);
+  broadcastRoom(roomCode);
+}
+
+function scheduleMatchEnd(roomCode, delayMs) {
+  clearMatchEndTimer(roomCode);
+  const timer = setTimeout(() => declareRunnersWinOnTimeout(roomCode), delayMs);
+  matchEndTimers.set(roomCode, timer);
 }
 
 function scheduleGameLiveAnnouncement(roomCode, delayMs) {
@@ -163,7 +203,7 @@ function scheduleGameLiveAnnouncement(roomCode, delayMs) {
 }
 
 io.on('connection', (socket) => {
-  socket.on('create-room', ({ roomName, pingIntervalSeconds, hunterPingIntervalSeconds, tagRadiusFeet, countdownSeconds, playerName, role, avatar }, cb) => {
+  socket.on('create-room', ({ roomName, pingIntervalSeconds, hunterPingIntervalSeconds, tagRadiusFeet, countdownSeconds, matchDurationSeconds, playerName, role, avatar }, cb) => {
     try {
       if (!playerName || !playerName.trim()) throw new Error('Name is required');
       const room = createRoom(
@@ -171,7 +211,8 @@ io.on('connection', (socket) => {
         Number(pingIntervalSeconds) || 30,
         Number(tagRadiusFeet) || 50,
         Number(hunterPingIntervalSeconds) || 30,
-        countdownSeconds != null ? Number(countdownSeconds) : 30
+        countdownSeconds != null ? Number(countdownSeconds) : 30,
+        matchDurationSeconds != null ? Number(matchDurationSeconds) : 0
       );
       const player = addPlayer({ roomCode: room.code, name: playerName.trim(), role: role || 'runner', avatar: sanitizeAvatar(avatar) });
 
@@ -295,6 +336,17 @@ io.on('connection', (socket) => {
     broadcastRoom(roomCode);
   });
 
+  // Match duration only takes effect on the next Start/Restart, same as the
+  // start countdown -- it just sets what game_ends_at will be computed from.
+  socket.on('set-match-duration', ({ seconds }) => {
+    const { roomCode } = socket.data;
+    if (!roomCode) return;
+    const s = Number(seconds);
+    if (s == null || Number.isNaN(s) || s < 0) return;
+    setMatchDuration(roomCode, s);
+    broadcastRoom(roomCode);
+  });
+
   socket.on('start-game', (_payload, cb) => {
     const { roomCode, playerId } = socket.data;
     if (!roomCode) { cb?.({ ok: false, error: 'Not in a room' }); return; }
@@ -317,6 +369,12 @@ io.on('connection', (socket) => {
 
     if (seconds > 0) {
       scheduleGameLiveAnnouncement(roomCode, seconds * 1000);
+    }
+
+    if (room.game_ends_at) {
+      scheduleMatchEnd(roomCode, room.game_ends_at - Date.now());
+    } else {
+      clearMatchEndTimer(roomCode);
     }
 
     cb?.({ ok: true, room });

@@ -16,7 +16,9 @@ db.exec(`
     hunter_ping_interval_seconds INTEGER NOT NULL DEFAULT 30,
     tag_radius_feet INTEGER NOT NULL DEFAULT 50,
     countdown_seconds INTEGER NOT NULL DEFAULT 30,
+    match_duration_seconds INTEGER NOT NULL DEFAULT 0,
     game_starts_at INTEGER,
+    game_ends_at INTEGER,
     winner TEXT,
     created_at INTEGER NOT NULL
   );
@@ -66,6 +68,12 @@ if (!roomColumns.includes('game_starts_at')) {
 }
 if (!roomColumns.includes('winner')) {
   db.exec('ALTER TABLE rooms ADD COLUMN winner TEXT');
+}
+if (!roomColumns.includes('match_duration_seconds')) {
+  db.exec('ALTER TABLE rooms ADD COLUMN match_duration_seconds INTEGER NOT NULL DEFAULT 0');
+}
+if (!roomColumns.includes('game_ends_at')) {
+  db.exec('ALTER TABLE rooms ADD COLUMN game_ends_at INTEGER');
 }
 
 const playerColumns = db.prepare('PRAGMA table_info(players)').all().map((c) => c.name);

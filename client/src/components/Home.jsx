@@ -33,6 +33,17 @@ const COUNTDOWN_OPTIONS = [
   { label: '5 minutes', value: 300 },
 ];
 
+const MATCH_DURATION_OPTIONS = [
+  { label: 'No limit (default)', value: 0 },
+  { label: '5 minutes', value: 300 },
+  { label: '10 minutes', value: 600 },
+  { label: '15 minutes', value: 900 },
+  { label: '20 minutes', value: 1200 },
+  { label: '30 minutes', value: 1800 },
+  { label: '45 minutes', value: 2700 },
+  { label: '1 hour', value: 3600 },
+];
+
 export default function Home({ onCreate, onJoin, connected, connecting, error }) {
   const [mode, setMode] = useState('join');
   const [playerName, setPlayerName] = useState('');
@@ -43,6 +54,7 @@ export default function Home({ onCreate, onJoin, connected, connecting, error })
   const [hunterPingIntervalSeconds, setHunterPingIntervalSeconds] = useState(30);
   const [tagRadiusFeet, setTagRadiusFeet] = useState(50);
   const [countdownSeconds, setCountdownSeconds] = useState(30);
+  const [matchDurationSeconds, setMatchDurationSeconds] = useState(0);
 
   const [joinCode, setJoinCode] = useState('');
   const [avatar, setAvatar] = useState(null);
@@ -70,6 +82,7 @@ export default function Home({ onCreate, onJoin, connected, connecting, error })
         hunterPingIntervalSeconds,
         tagRadiusFeet,
         countdownSeconds,
+        matchDurationSeconds,
         playerName,
         role,
         avatar,
@@ -215,6 +228,20 @@ export default function Home({ onCreate, onJoin, connected, connecting, error })
                 onChange={(e) => setCountdownSeconds(Number(e.target.value))}
               >
                 {COUNTDOWN_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
+                ))}
+              </select>
+            </label>
+          )}
+
+          {mode === 'create' && (
+            <label>
+              Match timer (runners win if the clock runs out)
+              <select
+                value={matchDurationSeconds}
+                onChange={(e) => setMatchDurationSeconds(Number(e.target.value))}
+              >
+                {MATCH_DURATION_OPTIONS.map((o) => (
                   <option key={o.value} value={o.value}>{o.label}</option>
                 ))}
               </select>
