@@ -22,9 +22,15 @@ import {
   setPingInterval,
   setHunterPingInterval,
   setTagRadius,
+  setCountdownSeconds,
+  startGame,
+  isGameLive,
   randomizeTeams,
 } from './rooms.js';
-import { haversineDistanceMeters } from './geo.js';
+import { haversineDistanceMeters, metersToFeet } from './geo.js';
+
+// Per-room timer that announces "tagging is live" when a start countdown elapses.
+const startTimers = new Map();
 
 const MAX_AVATAR_DATA_URL_LENGTH = 300000; // ~220KB decoded; client compresses well below this
 
@@ -76,6 +82,7 @@ function broadcastRoom(code) {
 function checkProximityTags(roomCode, movedPlayerId) {
   const room = getRoom(roomCode);
   if (!room) return;
+  if (!isGameLive(room)) return;
   const mover = getPlayer(movedPlayerId);
   if (!mover || mover.caught || mover.lat == null || mover.lng == null) return;
   if (mover.role !== 'hunter' && mover.role !== 'runner') return;
@@ -86,15 +93,15 @@ function checkProximityTags(roomCode, movedPlayerId) {
   );
 
   for (const target of targets) {
-    const dist = haversineDistanceMeters(mover.lat, mover.lng, target.lat, target.lng);
-    if (dist <= room.tag_radius_meters) {
+    const distFeet = metersToFeet(haversineDistanceMeters(mover.lat, mover.lng, target.lat, target.lng));
+    if (distFeet <= room.tag_radius_feet) {
       const runner = mover.role === 'runner' ? mover : target;
       const hunter = mover.role === 'hunter' ? mover : target;
       setPlayerCaught(runner.id, true);
       const sysMsg = addMessage({
         roomCode,
         playerName: 'System',
-        text: `${runner.name} was tagged by ${hunter.name}! (${Math.round(dist)}m)`,
+        text: `${runner.name} was tagged by ${hunter.name}! (${Math.round(distFeet)}ft)`,
         system: true,
       });
       io.to(roomCode).emit('chat-message', sysMsg);
@@ -102,15 +109,37 @@ function checkProximityTags(roomCode, movedPlayerId) {
   }
 }
 
+function scheduleGameLiveAnnouncement(roomCode, delayMs) {
+  const existing = startTimers.get(roomCode);
+  if (existing) clearTimeout(existing);
+
+  const timer = setTimeout(() => {
+    startTimers.delete(roomCode);
+    const room = getRoom(roomCode);
+    if (!room) return;
+    const sysMsg = addMessage({
+      roomCode,
+      playerName: 'System',
+      text: '🏁 Tagging is now live — go!',
+      system: true,
+    });
+    io.to(roomCode).emit('chat-message', sysMsg);
+    broadcastRoom(roomCode);
+  }, delayMs);
+
+  startTimers.set(roomCode, timer);
+}
+
 io.on('connection', (socket) => {
-  socket.on('create-room', ({ roomName, pingIntervalSeconds, hunterPingIntervalSeconds, tagRadiusMeters, playerName, role, avatar }, cb) => {
+  socket.on('create-room', ({ roomName, pingIntervalSeconds, hunterPingIntervalSeconds, tagRadiusFeet, countdownSeconds, playerName, role, avatar }, cb) => {
     try {
       if (!playerName || !playerName.trim()) throw new Error('Name is required');
       const room = createRoom(
         roomName,
         Number(pingIntervalSeconds) || 30,
-        Number(tagRadiusMeters) || 15,
-        Number(hunterPingIntervalSeconds) || 30
+        Number(tagRadiusFeet) || 50,
+        Number(hunterPingIntervalSeconds) || 30,
+        countdownSeconds != null ? Number(countdownSeconds) : 30
       );
       const player = addPlayer({ roomCode: room.code, name: playerName.trim(), role: role || 'runner', avatar: sanitizeAvatar(avatar) });
 
@@ -213,13 +242,49 @@ io.on('connection', (socket) => {
     broadcastRoom(roomCode);
   });
 
-  socket.on('set-tag-radius', ({ meters }) => {
+  socket.on('set-tag-radius', ({ feet }) => {
     const { roomCode } = socket.data;
     if (!roomCode) return;
-    const m = Number(meters);
-    if (!m || m < 1) return;
-    setTagRadius(roomCode, m);
+    const f = Number(feet);
+    if (!f || f < 1) return;
+    setTagRadius(roomCode, f);
     broadcastRoom(roomCode);
+  });
+
+  socket.on('set-countdown', ({ seconds }) => {
+    const { roomCode } = socket.data;
+    if (!roomCode) return;
+    const s = Number(seconds);
+    if (s == null || Number.isNaN(s) || s < 0) return;
+    setCountdownSeconds(roomCode, s);
+    broadcastRoom(roomCode);
+  });
+
+  socket.on('start-game', (_payload, cb) => {
+    const { roomCode, playerId } = socket.data;
+    if (!roomCode) { cb?.({ ok: false, error: 'Not in a room' }); return; }
+    const room = startGame(roomCode);
+    if (!room) { cb?.({ ok: false, error: 'Room not found' }); return; }
+
+    const starter = getPlayer(playerId);
+    const seconds = room.countdown_seconds;
+    const sysMsg = addMessage({
+      roomCode,
+      playerName: 'System',
+      text:
+        seconds > 0
+          ? `${starter?.name || 'Someone'} started the game — tagging goes live in ${seconds}s!`
+          : `${starter?.name || 'Someone'} started the game — tagging is live now!`,
+      system: true,
+    });
+    io.to(roomCode).emit('chat-message', sysMsg);
+    broadcastRoom(roomCode);
+
+    if (seconds > 0) {
+      scheduleGameLiveAnnouncement(roomCode, seconds * 1000);
+    }
+
+    cb?.({ ok: true, room });
   });
 
   socket.on('randomize-teams', ({ hunterCount }, cb) => {
@@ -241,11 +306,16 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('toggle-caught', ({ targetPlayerId, caught }) => {
+  socket.on('toggle-caught', ({ targetPlayerId, caught }, cb) => {
     const { roomCode } = socket.data;
-    if (!roomCode) return;
+    if (!roomCode) { cb?.({ ok: false, error: 'Not in a room' }); return; }
+    const room = getRoom(roomCode);
+    if (caught && !isGameLive(room)) {
+      cb?.({ ok: false, error: 'Game has not started yet' });
+      return;
+    }
     const target = getPlayer(targetPlayerId);
-    if (!target || target.room_code !== roomCode) return;
+    if (!target || target.room_code !== roomCode) { cb?.({ ok: false, error: 'Player not found' }); return; }
     setPlayerCaught(targetPlayerId, caught);
     const sysMsg = addMessage({
       roomCode,

@@ -13,13 +13,24 @@ const INTERVAL_OPTIONS = [
 ];
 
 const TAG_RADIUS_OPTIONS = [
-  { label: '5 meters', value: 5 },
-  { label: '10 meters', value: 10 },
-  { label: '15 meters (default)', value: 15 },
-  { label: '20 meters', value: 20 },
-  { label: '30 meters', value: 30 },
-  { label: '50 meters', value: 50 },
-  { label: '100 meters', value: 100 },
+  { label: '10 feet', value: 10 },
+  { label: '15 feet', value: 15 },
+  { label: '25 feet', value: 25 },
+  { label: '50 feet (default)', value: 50 },
+  { label: '75 feet', value: 75 },
+  { label: '100 feet', value: 100 },
+  { label: '200 feet', value: 200 },
+];
+
+const COUNTDOWN_OPTIONS = [
+  { label: 'No delay', value: 0 },
+  { label: '5 seconds', value: 5 },
+  { label: '10 seconds', value: 10 },
+  { label: '15 seconds', value: 15 },
+  { label: '30 seconds (default)', value: 30 },
+  { label: '1 minute', value: 60 },
+  { label: '2 minutes', value: 120 },
+  { label: '5 minutes', value: 300 },
 ];
 
 export default function Home({ onCreate, onJoin, connected, connecting, error }) {
@@ -30,7 +41,8 @@ export default function Home({ onCreate, onJoin, connected, connecting, error })
   const [roomName, setRoomName] = useState('My Manhunt Game');
   const [pingIntervalSeconds, setPingIntervalSeconds] = useState(30);
   const [hunterPingIntervalSeconds, setHunterPingIntervalSeconds] = useState(30);
-  const [tagRadiusMeters, setTagRadiusMeters] = useState(15);
+  const [tagRadiusFeet, setTagRadiusFeet] = useState(50);
+  const [countdownSeconds, setCountdownSeconds] = useState(30);
 
   const [joinCode, setJoinCode] = useState('');
   const [avatar, setAvatar] = useState(null);
@@ -52,7 +64,16 @@ export default function Home({ onCreate, onJoin, connected, connecting, error })
     if (!playerName.trim()) return;
     primeAudioContext();
     if (mode === 'create') {
-      onCreate({ roomName, pingIntervalSeconds, hunterPingIntervalSeconds, tagRadiusMeters, playerName, role, avatar });
+      onCreate({
+        roomName,
+        pingIntervalSeconds,
+        hunterPingIntervalSeconds,
+        tagRadiusFeet,
+        countdownSeconds,
+        playerName,
+        role,
+        avatar,
+      });
     } else {
       onJoin({ code: joinCode.trim().toUpperCase(), playerName, role, avatar });
     }
@@ -176,10 +197,24 @@ export default function Home({ onCreate, onJoin, connected, connecting, error })
             <label>
               Tag radius (auto-catch distance)
               <select
-                value={tagRadiusMeters}
-                onChange={(e) => setTagRadiusMeters(Number(e.target.value))}
+                value={tagRadiusFeet}
+                onChange={(e) => setTagRadiusFeet(Number(e.target.value))}
               >
                 {TAG_RADIUS_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
+                ))}
+              </select>
+            </label>
+          )}
+
+          {mode === 'create' && (
+            <label>
+              Start countdown (delay before tagging goes live)
+              <select
+                value={countdownSeconds}
+                onChange={(e) => setCountdownSeconds(Number(e.target.value))}
+              >
+                {COUNTDOWN_OPTIONS.map((o) => (
                   <option key={o.value} value={o.value}>{o.label}</option>
                 ))}
               </select>

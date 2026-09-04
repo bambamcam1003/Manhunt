@@ -9,21 +9,22 @@ const PLAYER_COLORS = [
   '#e6beff', '#9a6324', '#800000', '#808000', '#000075',
 ];
 
-export function createRoom(name, pingIntervalSeconds, tagRadiusMeters, hunterPingIntervalSeconds) {
+export function createRoom(name, pingIntervalSeconds, tagRadiusFeet, hunterPingIntervalSeconds, countdownSeconds) {
   let code;
   do {
     code = roomCode();
   } while (db.prepare('SELECT 1 FROM rooms WHERE code = ?').get(code));
 
   db.prepare(
-    `INSERT INTO rooms (code, name, ping_interval_seconds, hunter_ping_interval_seconds, tag_radius_meters, created_at)
-     VALUES (?, ?, ?, ?, ?, ?)`
+    `INSERT INTO rooms (code, name, ping_interval_seconds, hunter_ping_interval_seconds, tag_radius_feet, countdown_seconds, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`
   ).run(
     code,
     name || 'Manhunt',
     pingIntervalSeconds || 30,
     hunterPingIntervalSeconds || 30,
-    tagRadiusMeters || 15,
+    tagRadiusFeet || 50,
+    countdownSeconds ?? 30,
     Date.now()
   );
 
@@ -43,8 +44,29 @@ export function setHunterPingInterval(code, seconds) {
   db.prepare('UPDATE rooms SET hunter_ping_interval_seconds = ? WHERE code = ?').run(seconds, code);
 }
 
-export function setTagRadius(code, meters) {
-  db.prepare('UPDATE rooms SET tag_radius_meters = ? WHERE code = ?').run(meters, code);
+export function setTagRadius(code, feet) {
+  db.prepare('UPDATE rooms SET tag_radius_feet = ? WHERE code = ?').run(feet, code);
+}
+
+export function setCountdownSeconds(code, seconds) {
+  db.prepare('UPDATE rooms SET countdown_seconds = ? WHERE code = ?').run(seconds, code);
+}
+
+const resetCaughtForNonSpectators = db.transaction((roomCode) => {
+  db.prepare("UPDATE players SET caught = 0 WHERE room_code = ? AND role != 'spectator'").run(roomCode);
+});
+
+export function startGame(code) {
+  const room = getRoom(code);
+  if (!room) return null;
+  const startsAt = Date.now() + Math.max(0, room.countdown_seconds) * 1000;
+  db.prepare('UPDATE rooms SET game_starts_at = ? WHERE code = ?').run(startsAt, code);
+  resetCaughtForNonSpectators(code);
+  return getRoom(code);
+}
+
+export function isGameLive(room) {
+  return !!room.game_starts_at && Date.now() >= room.game_starts_at;
 }
 
 export function getPlayers(code) {

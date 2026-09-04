@@ -8,7 +8,8 @@ import Chat from './Chat.jsx';
 import Avatar from './Avatar.jsx';
 
 const INTERVAL_OPTIONS = [5, 10, 30, 60, 120, 300, 600];
-const TAG_RADIUS_OPTIONS = [5, 10, 15, 20, 30, 50, 100];
+const TAG_RADIUS_OPTIONS = [10, 15, 25, 50, 75, 100, 200];
+const COUNTDOWN_OPTIONS = [0, 5, 10, 15, 30, 60, 120, 300];
 
 function formatInterval(seconds) {
   if (seconds < 60) return `${seconds}s`;
@@ -70,13 +71,18 @@ export default function Game({ room, player, players, messages, onLeave }) {
     return () => clearInterval(intervalRef.current);
   }, [myIntervalSeconds, sendLocation]);
 
-  // Ticks once a second purely to keep the "next ping in Xs" countdown live.
+  // Ticks once a second purely to keep the "next ping" and "game starts in" countdowns live.
   useEffect(() => {
     const t = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(t);
   }, []);
 
-  const countdownSeconds = nextPingAt ? Math.max(0, Math.round((nextPingAt - now) / 1000)) : null;
+  const pingCountdownSeconds = nextPingAt ? Math.max(0, Math.round((nextPingAt - now) / 1000)) : null;
+
+  const gameStartsAt = room.game_starts_at;
+  const gameLive = !!gameStartsAt && now >= gameStartsAt;
+  const gameCountingDown = !!gameStartsAt && now < gameStartsAt;
+  const gameCountdownSeconds = gameCountingDown ? Math.max(0, Math.ceil((gameStartsAt - now) / 1000)) : 0;
 
   // Flash the screen red + play a sound the moment *this* player transitions
   // into "caught" (proximity auto-tag or a hunter's manual toggle).
@@ -108,8 +114,16 @@ export default function Game({ room, player, players, messages, onLeave }) {
     socket.emit('set-hunter-ping-interval', { seconds: Number(seconds) });
   }
 
-  function changeTagRadius(meters) {
-    socket.emit('set-tag-radius', { meters: Number(meters) });
+  function changeTagRadius(feet) {
+    socket.emit('set-tag-radius', { feet: Number(feet) });
+  }
+
+  function changeCountdown(seconds) {
+    socket.emit('set-countdown', { seconds: Number(seconds) });
+  }
+
+  function handleStartGame() {
+    socket.emit('start-game', {});
   }
 
   function copyCode() {
@@ -172,6 +186,27 @@ export default function Game({ room, player, players, messages, onLeave }) {
       {geoError && <div className="banner error">{geoError}</div>}
       {avatarError && <div className="banner error">{avatarError}</div>}
 
+      {gameCountingDown && (
+        <div className="banner countdown">🚦 Game starts in {gameCountdownSeconds}s — get ready!</div>
+      )}
+
+      <div className="ping-bar">
+        <span>
+          ⏱️ Start delay
+          <select
+            value={room.countdown_seconds ?? 30}
+            onChange={(e) => changeCountdown(e.target.value)}
+          >
+            {COUNTDOWN_OPTIONS.map((s) => (
+              <option key={s} value={s}>{s === 0 ? 'None' : formatInterval(s)}</option>
+            ))}
+          </select>
+        </span>
+        <button className="btn small primary" onClick={handleStartGame}>
+          {gameStartsAt ? '🔁 Restart Round' : '🚀 Start Game'}
+        </button>
+      </div>
+
       <div className="ping-bar">
         <span>
           🏃 Runners ping
@@ -199,11 +234,11 @@ export default function Game({ room, player, players, messages, onLeave }) {
 
       <div className="ping-bar">
         <span className="next-ping">
-          {countdownSeconds === null
+          {pingCountdownSeconds === null
             ? 'Waiting for GPS...'
-            : countdownSeconds <= 0
+            : pingCountdownSeconds <= 0
               ? 'Pinging now...'
-              : `Next ping in ${countdownSeconds}s`}
+              : `Next ping in ${pingCountdownSeconds}s`}
         </span>
         <span className="last-sent">
           {lastSent ? `Last sent ${new Date(lastSent).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}` : ''}
@@ -214,20 +249,22 @@ export default function Game({ room, player, players, messages, onLeave }) {
         <span>
           🎯 Auto-tag within
           <select
-            value={room.tag_radius_meters ?? 15}
+            value={room.tag_radius_feet ?? 50}
             onChange={(e) => changeTagRadius(e.target.value)}
           >
-            {TAG_RADIUS_OPTIONS.map((m) => (
-              <option key={m} value={m}>{m}m</option>
+            {TAG_RADIUS_OPTIONS.map((ft) => (
+              <option key={ft} value={ft}>{ft}ft</option>
             ))}
           </select>
         </span>
-        <span className="last-sent">Hunters auto-catch runners within this range</span>
+        <span className="last-sent">
+          {gameLive ? 'Hunters auto-catch runners within this range' : 'Tagging starts once the game begins'}
+        </span>
       </div>
 
       <main className="game-body">
         {tab === 'map' && <GameMap players={players} />}
-        {tab === 'players' && <PlayerList players={players} me={me} />}
+        {tab === 'players' && <PlayerList players={players} me={me} gameLive={gameLive} />}
         {tab === 'chat' && <Chat messages={messages} me={me} />}
       </main>
 

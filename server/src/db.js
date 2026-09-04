@@ -14,7 +14,9 @@ db.exec(`
     name TEXT NOT NULL,
     ping_interval_seconds INTEGER NOT NULL DEFAULT 30,
     hunter_ping_interval_seconds INTEGER NOT NULL DEFAULT 30,
-    tag_radius_meters INTEGER NOT NULL DEFAULT 15,
+    tag_radius_feet INTEGER NOT NULL DEFAULT 50,
+    countdown_seconds INTEGER NOT NULL DEFAULT 30,
+    game_starts_at INTEGER,
     created_at INTEGER NOT NULL
   );
 
@@ -46,11 +48,20 @@ db.exec(`
 `);
 
 const roomColumns = db.prepare('PRAGMA table_info(rooms)').all().map((c) => c.name);
-if (!roomColumns.includes('tag_radius_meters')) {
-  db.exec('ALTER TABLE rooms ADD COLUMN tag_radius_meters INTEGER NOT NULL DEFAULT 15');
-}
 if (!roomColumns.includes('hunter_ping_interval_seconds')) {
   db.exec('ALTER TABLE rooms ADD COLUMN hunter_ping_interval_seconds INTEGER NOT NULL DEFAULT 30');
+}
+if (!roomColumns.includes('tag_radius_feet')) {
+  db.exec('ALTER TABLE rooms ADD COLUMN tag_radius_feet INTEGER NOT NULL DEFAULT 50');
+  if (roomColumns.includes('tag_radius_meters')) {
+    db.exec('UPDATE rooms SET tag_radius_feet = CAST(ROUND(tag_radius_meters * 3.28084) AS INTEGER)');
+  }
+}
+if (!roomColumns.includes('countdown_seconds')) {
+  db.exec('ALTER TABLE rooms ADD COLUMN countdown_seconds INTEGER NOT NULL DEFAULT 30');
+}
+if (!roomColumns.includes('game_starts_at')) {
+  db.exec('ALTER TABLE rooms ADD COLUMN game_starts_at INTEGER');
 }
 
 const playerColumns = db.prepare('PRAGMA table_info(players)').all().map((c) => c.name);

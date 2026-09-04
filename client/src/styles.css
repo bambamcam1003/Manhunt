@@ -372,6 +372,20 @@ button:active {
   color: #fca5a5;
 }
 
+.banner.countdown {
+  background: var(--gradient);
+  color: #1a1005;
+  font-weight: 800;
+  font-size: 15px;
+  padding: 12px 16px;
+  animation: countdown-pulse 1s ease-in-out infinite;
+}
+
+@keyframes countdown-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.75; }
+}
+
 .ping-bar {
   display: flex;
   align-items: center;

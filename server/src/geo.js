@@ -10,3 +10,9 @@ export function haversineDistanceMeters(lat1, lng1, lat2, lng2) {
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   return EARTH_RADIUS_METERS * c;
 }
+
+const METERS_TO_FEET = 3.28084;
+
+export function metersToFeet(meters) {
+  return meters * METERS_TO_FEET;
+}

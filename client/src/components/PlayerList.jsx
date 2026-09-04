@@ -57,7 +57,7 @@ function RandomizeTeams({ players }) {
   );
 }
 
-export default function PlayerList({ players, me }) {
+export default function PlayerList({ players, me, gameLive = true }) {
   const iAmHunter = me.role === 'hunter';
 
   function toggleCaught(p) {
@@ -87,7 +87,12 @@ export default function PlayerList({ players, me }) {
             </div>
           </div>
           {iAmHunter && p.id !== me.id && p.role !== 'spectator' && (
-            <button className="btn small" onClick={() => toggleCaught(p)}>
+            <button
+              className="btn small"
+              onClick={() => toggleCaught(p)}
+              disabled={!p.caught && !gameLive}
+              title={!p.caught && !gameLive ? "Game hasn't started yet" : undefined}
+            >
               {p.caught ? 'Uncatch' : 'Caught'}
             </button>
           )}

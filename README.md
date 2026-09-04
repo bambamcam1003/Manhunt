@@ -6,8 +6,9 @@ at a chosen interval, positions show up live on a shared map, and there's a grou
 ## How it works
 
 - **Create a game** — pick a game name, separate GPS ping intervals for runners and for
-  hunters (5s to 10min each), a tag radius (5m to 100m), your name, and your role
-  (Hunter / Runner / Spectator). You get a 5-letter room code.
+  hunters (5s to 10min each), a tag radius (10ft to 200ft), a start countdown (no delay up
+  to 5min), your name, and your role (Hunter / Runner / Spectator). You get a 5-letter room
+  code. All measurements are imperial (feet).
 - **Share the code** with friends — they open the app, tap "Join Game", enter the code and
   their name.
 - Everyone's browser pings its GPS on their own role's interval and the server broadcasts
@@ -23,13 +24,18 @@ at a chosen interval, positions show up live on a shared map, and there's a grou
 - **Randomize teams** — from the Players tab, pick how many hunters you want and hit
   "Randomize Teams" to shuffle everyone (except spectators) into hunters/runners and reset
   catch status for a new round.
+- **Start countdown** — tagging (both automatic and manual) is disabled until someone hits
+  "Start Game", so hunters standing right next to runners at the beginning can't tag them
+  instantly. A pulsing banner counts down to go-time, adjustable anytime from the "Start
+  delay" control (0 for an instant start). "Start Game" doubles as "Restart Round" once a
+  round is underway — it resets everyone's catch status for a fresh round.
 - **Profile pictures** — optionally add a photo when you join (or change it anytime by
   tapping your avatar in the game header); it shows up on the map marker and player list.
   No photo needed — you get a colored initial avatar instead.
 - **Map**: live OpenStreetMap view with a satellite toggle (Esri World Imagery) and zoom up
   to street level.
-- The ping intervals and tag radius can all be changed by anyone mid-game (e.g. slow the
-  ping down to save battery, widen the tag radius if GPS is noisy).
+- The ping intervals, tag radius, and start delay can all be changed by anyone mid-game
+  (e.g. slow the ping down to save battery, widen the tag radius if GPS is noisy).
 - There's a group chat tab for coordinating/trash talk.
 - The app is installable to your phone's home screen (PWA) for a more native feel.
 
