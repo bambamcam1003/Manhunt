@@ -15,7 +15,10 @@ at a chosen interval, positions show up live on a shared map, and there's a grou
   every player's latest position to the room, shown on a live map. Hunters and runners can
   be given different ping rates (e.g. hunters ping every 5s for a tighter chase while
   runners ping every minute to save battery) — each player's game screen shows a live
-  "next ping in Xs" countdown for their own device.
+  "next ping in Xs" countdown for their own device. Ping schedules are synced to the
+  server's clock (anchored to when the room was created), not to whenever each phone
+  happened to load the game screen — so every player sharing the same interval pings at the
+  same moment, instead of drifting on their own independent offset.
 - **Map visibility** — everyone sees everyone's location, hunters and runners alike. It's
   never truly live for anyone, though: a player's marker only moves when their own device
   sends a ping at their role's interval, so what you're looking at is always a snapshot of

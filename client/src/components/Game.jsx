@@ -68,16 +68,35 @@ export default function Game({ room, player, players, messages, onLeave }) {
     );
   }, []);
 
+  // Ping times are aligned to room.created_at -- a single timestamp the
+  // server stamped once and every player received, instead of each device's
+  // own moment of loading the game screen. So any two players sharing the
+  // same role interval land on the exact same tick (same anchor + same
+  // interval = same schedule), rather than pinging on independent offsets.
+  // Recomputing the next tick from the anchor on every fire (rather than
+  // just "now + ms") also means a late setTimeout can't drift the schedule.
   useEffect(() => {
     const ms = Math.max(5, myIntervalSeconds) * 1000;
+    const anchor = room.created_at;
+
+    function nextAlignedPingAt() {
+      const ticksElapsed = Math.floor((Date.now() - anchor) / ms);
+      return anchor + (ticksElapsed + 1) * ms;
+    }
+
+    function scheduleNext() {
+      const at = nextAlignedPingAt();
+      setNextPingAt(at);
+      intervalRef.current = setTimeout(() => {
+        sendLocation();
+        scheduleNext();
+      }, Math.max(0, at - Date.now()));
+    }
+
     sendLocation();
-    setNextPingAt(Date.now() + ms);
-    intervalRef.current = setInterval(() => {
-      sendLocation();
-      setNextPingAt(Date.now() + ms);
-    }, ms);
-    return () => clearInterval(intervalRef.current);
-  }, [myIntervalSeconds, sendLocation]);
+    scheduleNext();
+    return () => clearTimeout(intervalRef.current);
+  }, [myIntervalSeconds, room.created_at, sendLocation]);
 
   // Ticks once a second purely to keep the "next ping" and "game starts in" countdowns live.
   useEffect(() => {
