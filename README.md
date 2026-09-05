@@ -16,13 +16,13 @@ at a chosen interval, positions show up live on a shared map, and there's a grou
   be given different ping rates (e.g. hunters ping every 5s for a tighter chase while
   runners ping every minute to save battery) — each player's game screen shows a live
   "next ping in Xs" countdown for their own device.
-- **Map visibility** — hunters see every runner's live position (plus fellow hunters), since
-  they need it to actually hunt. Runners only see their own team — hunters stay hidden from
-  them, so evading is still a challenge. Spectators see everyone. This is enforced by the
-  server, not just hidden in the UI — a hidden player's coordinates are never sent to your
-  device in the first place. Recently-pinging players get a pulsing "live" marker; anyone
-  who hasn't pinged in a while shows dimmed with a "last known" timestamp instead, so you
-  can tell a fresh position from a stale one.
+- **Map visibility** — everyone sees everyone's location, hunters and runners alike. It's
+  never truly live for anyone, though: a player's marker only moves when their own device
+  sends a ping at their role's interval, so what you're looking at is always a snapshot of
+  where they were as of their last ping. Recently-pinging players get a pulsing "live"
+  marker (judged against *their own* role's ping interval, not yours, since hunters and
+  runners can ping at different rates); anyone who hasn't pinged in a while shows dimmed
+  with a "last known" timestamp instead, so you can tell a fresh ping from a stale one.
 - **Auto-tag by proximity** — whenever a hunter's and a runner's GPS positions come within
   the room's tag radius of each other, the runner is automatically marked "caught" (no
   button press needed) and it's announced in chat. The runner's own screen flashes red with

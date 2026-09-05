@@ -83,27 +83,17 @@ app.get('/api/rooms/:code', (req, res) => {
   res.json({ ok: true, room });
 });
 
-// Hunters see their own team plus every runner's live position (hunters need
-// runners' locations to actually hunt them). Runners only see their own team
-// -- hunters stay hidden from them, so evading is still a challenge.
-// Spectators see everyone. A hidden player still appears in the roster
-// (name/role/caught/etc.) with their location stripped, so manual-tag
-// controls keep working.
-function playersVisibleTo(viewer, allPlayers) {
-  if (viewer.role === 'spectator') return allPlayers;
-  return allPlayers.map((p) => {
-    if (p.id === viewer.id || p.role === viewer.role) return p;
-    if (viewer.role === 'hunter' && p.role === 'runner') return p;
-    return { ...p, lat: null, lng: null, accuracy: null };
-  });
-}
-
+// Everyone sees every player's location. It's never truly "live" for anyone
+// -- a player's position only changes when their own device sends a
+// location-update at their role's ping interval, so what you're looking at
+// is always a snapshot of where they were as of their last ping (hunters'
+// and runners' ping intervals can differ, which is why each marker's
+// live/stale state is judged against the PINGED PLAYER's own interval, not
+// the viewer's -- see freshThresholdForRole on the client).
 function broadcastRoom(code) {
   const room = getRoom(code);
   const players = getPlayers(code);
-  for (const viewer of players) {
-    io.to(viewer.id).emit('room-state', { room, players: playersVisibleTo(viewer, players) });
-  }
+  io.to(code).emit('room-state', { room, players });
 }
 
 function checkProximityTags(roomCode, movedPlayerId) {

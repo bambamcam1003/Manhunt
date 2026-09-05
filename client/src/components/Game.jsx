@@ -41,7 +41,6 @@ export default function Game({ room, player, players, messages, onLeave }) {
   const myIntervalSeconds = isHunter
     ? (room.hunter_ping_interval_seconds ?? 30)
     : room.ping_interval_seconds;
-  const freshThresholdMs = Math.max(15, myIntervalSeconds * 2.5) * 1000;
 
   const sendLocation = useCallback(() => {
     if (!navigator.geolocation) {
@@ -373,7 +372,7 @@ export default function Game({ room, player, players, messages, onLeave }) {
         {tab === 'map' && (
           <GameMap
             players={players}
-            freshThresholdMs={freshThresholdMs}
+            room={room}
             viewerRole={me.role}
             trails={trailsRef.current}
           />

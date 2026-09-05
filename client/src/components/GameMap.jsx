@@ -125,21 +125,21 @@ function Trails({ trails, playersById }) {
   );
 }
 
-const VISIBILITY_LABEL = {
-  hunter: '🔴 Hunters + Runners',
-  runner: '🏃 Runners only',
-  spectator: '👀 Everyone',
-};
-
-const VISIBILITY_TITLE = {
-  hunter: "You see every runner's live location, plus fellow hunters",
-  runner: "You only see fellow runners — hunters are hidden from you",
-  spectator: 'You see everyone',
-};
+// Nobody's marker is truly "live" -- it only moves when that player's own
+// device sends a location-update, at their role's ping interval. So a
+// hunter's freshness is judged against the room's hunter ping interval and a
+// runner's (or spectator's) against the runner interval, regardless of who's
+// looking -- otherwise a hunter viewing a slower-pinging runner would see
+// their marker go "stale" almost immediately even though the runner is
+// pinging right on schedule.
+function freshThresholdForRole(role, room) {
+  const seconds = role === 'hunter' ? (room.hunter_ping_interval_seconds ?? 30) : (room.ping_interval_seconds ?? 30);
+  return Math.max(15, seconds * 2.5) * 1000;
+}
 
 const EMPTY_TRAILS = new Map();
 
-export default function GameMap({ players, freshThresholdMs = 60000, viewerRole, trails = EMPTY_TRAILS }) {
+export default function GameMap({ players, room, viewerRole, trails = EMPTY_TRAILS }) {
   const [layerKey, setLayerKey] = useState('street');
   const layer = LAYERS[layerKey];
   const located = useMemo(() => players.filter((p) => p.lat != null && p.lng != null), [players]);
@@ -161,7 +161,7 @@ export default function GameMap({ players, freshThresholdMs = 60000, viewerRole,
         <FitToPlayers players={players} />
         <Trails trails={trails} playersById={playersById} />
         {located.map((p) => {
-          const isLive = !!p.connected && !!p.last_update && Date.now() - p.last_update < freshThresholdMs;
+          const isLive = !!p.connected && !!p.last_update && Date.now() - p.last_update < freshThresholdForRole(p.role, room);
           return (
             <Marker key={p.id} position={[p.lat, p.lng]} icon={iconFor(p, isLive)}>
               {p.accuracy ? <Circle center={[p.lat, p.lng]} radius={p.accuracy} pathOptions={{ color: p.color, opacity: 0.3 }} /> : null}
@@ -196,8 +196,11 @@ export default function GameMap({ players, freshThresholdMs = 60000, viewerRole,
       </button>
 
       {viewerRole && (
-        <div className="visibility-pill" title={VISIBILITY_TITLE[viewerRole] || 'You see everyone'}>
-          {VISIBILITY_LABEL[viewerRole] || 'Everyone'}
+        <div
+          className="visibility-pill"
+          title="Every marker shows where that player was as of their last ping, not a continuous live feed — a pulsing marker means they're pinging on schedule, a dimmed one means their last ping is stale."
+        >
+          👀 Everyone (ping-based)
         </div>
       )}
     </div>
