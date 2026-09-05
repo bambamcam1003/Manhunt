@@ -83,14 +83,17 @@ app.get('/api/rooms/:code', (req, res) => {
   res.json({ ok: true, room });
 });
 
-// Hunters only see hunters' live positions, runners only see runners' —
-// same team as the viewer, or the viewer themself. Spectators see everyone.
-// Cross-team players still appear (name/role/caught/etc.) with their
-// location stripped, so the roster and manual-tag controls keep working.
+// Hunters see their own team plus every runner's live position (hunters need
+// runners' locations to actually hunt them). Runners only see their own team
+// -- hunters stay hidden from them, so evading is still a challenge.
+// Spectators see everyone. A hidden player still appears in the roster
+// (name/role/caught/etc.) with their location stripped, so manual-tag
+// controls keep working.
 function playersVisibleTo(viewer, allPlayers) {
   if (viewer.role === 'spectator') return allPlayers;
   return allPlayers.map((p) => {
     if (p.id === viewer.id || p.role === viewer.role) return p;
+    if (viewer.role === 'hunter' && p.role === 'runner') return p;
     return { ...p, lat: null, lng: null, accuracy: null };
   });
 }

@@ -126,9 +126,15 @@ function Trails({ trails, playersById }) {
 }
 
 const VISIBILITY_LABEL = {
-  hunter: '🔴 Hunters only',
+  hunter: '🔴 Hunters + Runners',
   runner: '🏃 Runners only',
   spectator: '👀 Everyone',
+};
+
+const VISIBILITY_TITLE = {
+  hunter: "You see every runner's live location, plus fellow hunters",
+  runner: "You only see fellow runners — hunters are hidden from you",
+  spectator: 'You see everyone',
 };
 
 const EMPTY_TRAILS = new Map();
@@ -190,7 +196,7 @@ export default function GameMap({ players, freshThresholdMs = 60000, viewerRole,
       </button>
 
       {viewerRole && (
-        <div className="visibility-pill" title="You only see your own team's live locations">
+        <div className="visibility-pill" title={VISIBILITY_TITLE[viewerRole] || 'You see everyone'}>
           {VISIBILITY_LABEL[viewerRole] || 'Everyone'}
         </div>
       )}
