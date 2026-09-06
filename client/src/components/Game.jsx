@@ -42,6 +42,11 @@ export default function Game({ room, player, players, messages, onLeave }) {
     ? (room.hunter_ping_interval_seconds ?? 30)
     : room.ping_interval_seconds;
 
+  const gameStartsAt = room.game_starts_at;
+  const gameLive = !!gameStartsAt && now >= gameStartsAt;
+  const gameCountingDown = !!gameStartsAt && now < gameStartsAt;
+  const gameCountdownSeconds = gameCountingDown ? Math.max(0, Math.ceil((gameStartsAt - now) / 1000)) : 0;
+
   const sendLocation = useCallback(() => {
     if (!navigator.geolocation) {
       setGeoError('Geolocation not supported on this device/browser.');
@@ -68,16 +73,25 @@ export default function Game({ room, player, players, messages, onLeave }) {
     );
   }, []);
 
-  // Ping times are aligned to room.created_at -- a single timestamp the
-  // server stamped once and every player received, instead of each device's
-  // own moment of loading the game screen. So any two players sharing the
-  // same role interval land on the exact same tick (same anchor + same
-  // interval = same schedule), rather than pinging on independent offsets.
-  // Recomputing the next tick from the anchor on every fire (rather than
-  // just "now + ms") also means a late setTimeout can't drift the schedule.
+  // No pinging happens until tagging is actually live -- not during the
+  // pre-game lobby, and not during the start-delay countdown either, so
+  // nobody's position (and no "next ping" countdown) exists before the timer
+  // finishes. Once live, ping times are aligned to room.game_starts_at -- a
+  // single timestamp the server stamped once and every player received,
+  // instead of each device's own moment of loading the game screen -- so any
+  // two players sharing the same role interval land on the exact same tick,
+  // right from the moment the round actually begins. Recomputing the next
+  // tick from that anchor on every fire (rather than just "now + ms") also
+  // means a late setTimeout can't drift the schedule.
   useEffect(() => {
+    if (!gameLive) {
+      setNextPingAt(null);
+      setLastSent(null);
+      return;
+    }
+
     const ms = Math.max(5, myIntervalSeconds) * 1000;
-    const anchor = room.created_at;
+    const anchor = gameStartsAt;
 
     function nextAlignedPingAt() {
       const ticksElapsed = Math.floor((Date.now() - anchor) / ms);
@@ -96,7 +110,7 @@ export default function Game({ room, player, players, messages, onLeave }) {
     sendLocation();
     scheduleNext();
     return () => clearTimeout(intervalRef.current);
-  }, [myIntervalSeconds, room.created_at, sendLocation]);
+  }, [gameLive, gameStartsAt, myIntervalSeconds, sendLocation]);
 
   // Ticks once a second purely to keep the "next ping" and "game starts in" countdowns live.
   useEffect(() => {
@@ -106,10 +120,6 @@ export default function Game({ room, player, players, messages, onLeave }) {
 
   const pingCountdownSeconds = nextPingAt ? Math.max(0, Math.round((nextPingAt - now) / 1000)) : null;
 
-  const gameStartsAt = room.game_starts_at;
-  const gameLive = !!gameStartsAt && now >= gameStartsAt;
-  const gameCountingDown = !!gameStartsAt && now < gameStartsAt;
-  const gameCountdownSeconds = gameCountingDown ? Math.max(0, Math.ceil((gameStartsAt - now) / 1000)) : 0;
   const won = !!room.winner;
 
   const gameEndsAt = room.game_ends_at;
@@ -359,11 +369,13 @@ export default function Game({ room, player, players, messages, onLeave }) {
 
       <div className="ping-bar">
         <span className="next-ping">
-          {pingCountdownSeconds === null
-            ? 'Waiting for GPS...'
-            : pingCountdownSeconds <= 0
-              ? 'Pinging now...'
-              : `Next ping in ${pingCountdownSeconds}s`}
+          {!gameLive
+            ? 'Pings start once the game goes live'
+            : pingCountdownSeconds === null
+              ? 'Waiting for GPS...'
+              : pingCountdownSeconds <= 0
+                ? 'Pinging now...'
+                : `Next ping in ${pingCountdownSeconds}s`}
         </span>
         <span className="last-sent">
           {lastSent ? `Last sent ${new Date(lastSent).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}` : ''}

@@ -15,10 +15,12 @@ at a chosen interval, positions show up live on a shared map, and there's a grou
   every player's latest position to the room, shown on a live map. Hunters and runners can
   be given different ping rates (e.g. hunters ping every 5s for a tighter chase while
   runners ping every minute to save battery) — each player's game screen shows a live
-  "next ping in Xs" countdown for their own device. Ping schedules are synced to the
-  server's clock (anchored to when the room was created), not to whenever each phone
-  happened to load the game screen — so every player sharing the same interval pings at the
-  same moment, instead of drifting on their own independent offset.
+  "next ping in Xs" countdown for their own device. No pinging happens until tagging is
+  actually live — not in the lobby, not during the start-delay countdown — and once it
+  starts, ping schedules are synced to the server's clock (anchored to the exact moment the
+  round went live), not to whenever each phone happened to load the game screen — so every
+  player sharing the same interval pings at the same moment, instead of drifting on their
+  own independent offset.
 - **Map visibility** — everyone sees everyone's location, hunters and runners alike. It's
   never truly live for anyone, though: a player's marker only moves when their own device
   sends a ping at their role's interval, so what you're looking at is always a snapshot of
@@ -38,9 +40,11 @@ at a chosen interval, positions show up live on a shared map, and there's a grou
   catch status for a new round.
 - **Start countdown** — tagging (both automatic and manual) is disabled until someone hits
   "Start Game", so hunters standing right next to runners at the beginning can't tag them
-  instantly. A pulsing banner counts down to go-time, adjustable anytime from the "Start
-  delay" control (0 for an instant start). "Start Game" doubles as "Restart Round" once a
-  round is underway — it resets everyone's catch status for a fresh round.
+  instantly. GPS pinging is held off for that same window too, so nobody's position exists
+  yet while everyone's still getting into place. A pulsing banner counts down to go-time,
+  adjustable anytime from the "Start delay" control (0 for an instant start). "Start Game"
+  doubles as "Restart Round" once a round is underway — it resets everyone's catch status
+  (and pauses pinging again) for a fresh round.
 - **Profile pictures** — optionally add a photo when you join (or change it anytime by
   tapping your avatar in the game header); it shows up on the map marker and player list.
   No photo needed — you get a colored initial avatar instead.
