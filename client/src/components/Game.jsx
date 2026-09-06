@@ -47,9 +47,12 @@ export default function Game({ room, player, players, messages, onLeave }) {
   const gameCountingDown = !!gameStartsAt && now < gameStartsAt;
   const gameCountdownSeconds = gameCountingDown ? Math.max(0, Math.ceil((gameStartsAt - now) / 1000)) : 0;
 
-  const sendLocation = useCallback(() => {
+  // onDone(ok, err) lets a caller react to failure (e.g. to retry) without
+  // sendLocation needing to know anything about who's calling it or why.
+  const sendLocation = useCallback((onDone) => {
     if (!navigator.geolocation) {
       setGeoError('Geolocation not supported on this device/browser.');
+      onDone?.(false, { code: 0 });
       return;
     }
     navigator.geolocation.getCurrentPosition(
@@ -61,6 +64,7 @@ export default function Game({ room, player, players, messages, onLeave }) {
           lng: pos.coords.longitude,
           accuracy: pos.coords.accuracy,
         });
+        onDone?.(true);
       },
       (err) => {
         setGeoError(
@@ -68,6 +72,7 @@ export default function Game({ room, player, players, messages, onLeave }) {
             ? 'Location permission denied. Enable it in your browser settings.'
             : `Location error: ${err.message}`
         );
+        onDone?.(false, err);
       },
       { enableHighAccuracy: true, maximumAge: 5000, timeout: 15000 }
     );
@@ -107,9 +112,27 @@ export default function Game({ room, player, players, messages, onLeave }) {
       }, Math.max(0, at - Date.now()));
     }
 
-    sendLocation();
+    // The very first ping of a round is time-sensitive: a slow permission
+    // prompt or GPS fix can eat the whole 15s geolocation timeout, and
+    // without a retry the app would then sit silent until the next full
+    // interval tick -- which on a slow interval looks exactly like "it
+    // waited out the whole timer" instead of pinging right at go-live.
+    // `cancelled` stops a queued retry from doing anything once this effect
+    // is cleaned up (round restarted, interval changed, etc).
+    let cancelled = false;
+    function attemptInitialPing(retriesLeft) {
+      sendLocation((ok, err) => {
+        if (cancelled || ok || err?.code === 1 || retriesLeft <= 0) return;
+        setTimeout(() => attemptInitialPing(retriesLeft - 1), 5000);
+      });
+    }
+
+    attemptInitialPing(2);
     scheduleNext();
-    return () => clearTimeout(intervalRef.current);
+    return () => {
+      cancelled = true;
+      clearTimeout(intervalRef.current);
+    };
   }, [gameLive, gameStartsAt, myIntervalSeconds, sendLocation]);
 
   // Ticks once a second purely to keep the "next ping" and "game starts in" countdowns live.
